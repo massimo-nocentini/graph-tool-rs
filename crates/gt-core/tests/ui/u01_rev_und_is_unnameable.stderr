@@ -1,0 +1,23 @@
+error[E0271]: type mismatch resolving `<Und<&AdjList> as HasDir>::Dir == Directed`
+  --> tests/ui/u01_rev_und_is_unnameable.rs:16:27
+   |
+16 | fn reversed_undirected(_: Rev<Und<&AdjList>>) {}
+   |                           ^^^^^^^^^^^^^^^^^^ expected `Directed`, found `Undirected`
+   |
+note: required by a bound in `gt_core::view::Rev`
+  --> src/view/reversed.rs
+   |
+   | pub struct Rev<G: HasDir<Dir = Directed>>(G);
+   |                          ^^^^^^^^^^^^^^ required by this bound in `Rev`
+
+error[E0271]: type mismatch resolving `<Und<&AdjList> as HasDir>::Dir == Directed`
+  --> tests/ui/u01_rev_und_is_unnameable.rs:27:24
+   |
+27 | fn undirected_twice(_: Und<Und<&AdjList>>) {}
+   |                        ^^^^^^^^^^^^^^^^^^ expected `Directed`, found `Undirected`
+   |
+note: required by a bound in `Und`
+  --> src/view/undirected.rs
+   |
+   | pub struct Und<G: HasDir<Dir = Directed>>(G);
+   |                          ^^^^^^^^^^^^^^ required by this bound in `Und`

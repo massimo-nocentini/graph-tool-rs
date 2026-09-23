@@ -1,0 +1,18 @@
+error[E0382]: use of moved value: `a`
+  --> tests/ui/u20_applied_is_not_reusable.rs:62:15
+   |
+58 |     let a = t.into_levels().next().expect("one level");
+   |         - move occurs because `a` has type `Applied<'_, Directed, i64>`, which does not implement the `Copy` trait
+...
+61 |     st.commit(a);
+   |               - value moved here
+62 |     st.commit(a);
+   |               ^ value used here after move
+   |
+note: consider changing this parameter type in method `commit` to borrow instead if owning the value isn't necessary
+  --> tests/ui/u20_applied_is_not_reusable.rs:28:29
+   |
+28 |     fn commit(&mut self, a: Applied<'_, Directed, i64>) {
+   |        ------               ^^^^^^^^^^^^^^^^^^^^^^^^^^ this parameter takes ownership of the value
+   |        |
+   |        in this method

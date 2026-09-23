@@ -1,0 +1,63 @@
+error[E0277]: `*mut ()` cannot be shared between threads safely
+  --> tests/ui/u30_par_mode_for_py_value.rs:31:24
+   |
+31 |     mode_of::<PyValue, Par>();
+   |                        ^^^ `*mut ()` cannot be shared between threads safely
+   |
+   = help: within `PyValue`, the trait `Sync` is not implemented for `*mut ()`
+help: the trait `Allows<V>` is conditionally implemented for `Par`
+  --> src/gil.rs
+   |
+   | impl<V: ?Sized + Sync + Send> Allows<V> for Par {}
+   | ^^^^^^^^^^^^^^^^^----^^^----^^^^^^^^^^^^^^^^^^^
+   |                  |      |
+   |                  |      unsatisfied requirement introduced here: `PyValue: Send`
+   |                  unsatisfied requirement introduced here: `PyValue: Sync`
+note: required because it appears within the type `PhantomData<*mut ()>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: PointeeSized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `PyValue`
+  --> $WORKSPACE/crates/gt-core/src/prop/value.rs
+   |
+   | pub struct PyValue {
+   |            ^^^^^^^
+   = note: required for `Par` to implement `Allows<PyValue>`
+note: required by a bound in `mode_of`
+  --> tests/ui/u30_par_mode_for_py_value.rs:28:36
+   |
+28 | fn mode_of<V: PropValue, M: Mode + Allows<V>>() {}
+   |                                    ^^^^^^^^^ required by this bound in `mode_of`
+
+error[E0277]: `*mut ()` cannot be sent between threads safely
+  --> tests/ui/u30_par_mode_for_py_value.rs:31:24
+   |
+31 |     mode_of::<PyValue, Par>();
+   |                        ^^^ `*mut ()` cannot be sent between threads safely
+   |
+   = help: within `PyValue`, the trait `Send` is not implemented for `*mut ()`
+help: the trait `Allows<V>` is conditionally implemented for `Par`
+  --> src/gil.rs
+   |
+   | impl<V: ?Sized + Sync + Send> Allows<V> for Par {}
+   | ^^^^^^^^^^^^^^^^^----^^^----^^^^^^^^^^^^^^^^^^^
+   |                  |      |
+   |                  |      unsatisfied requirement introduced here: `PyValue: Send`
+   |                  unsatisfied requirement introduced here: `PyValue: Sync`
+note: required because it appears within the type `PhantomData<*mut ()>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: PointeeSized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `PyValue`
+  --> $WORKSPACE/crates/gt-core/src/prop/value.rs
+   |
+   | pub struct PyValue {
+   |            ^^^^^^^
+   = note: required for `Par` to implement `Allows<PyValue>`
+note: required by a bound in `mode_of`
+  --> tests/ui/u30_par_mode_for_py_value.rs:28:36
+   |
+28 | fn mode_of<V: PropValue, M: Mode + Allows<V>>() {}
+   |                                    ^^^^^^^^^ required by this bound in `mode_of`

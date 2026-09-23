@@ -1,0 +1,15 @@
+error[E0308]: mismatched types
+  --> tests/ui/u01_vertex_and_edge_ids_are_distinct.rs:18:20
+   |
+18 |     wants_a_vertex(e);
+   |     -------------- ^ expected `Id<VertexTag>`, found `Id<EdgeTag>`
+   |     |
+   |     arguments to this function are incorrect
+   |
+   = note: expected struct `Id<VertexTag>`
+              found struct `Id<EdgeTag>`
+note: function defined here
+  --> tests/ui/u01_vertex_and_edge_ids_are_distinct.rs:14:4
+   |
+14 | fn wants_a_vertex(_: VertexId) {}
+   |    ^^^^^^^^^^^^^^ -----------

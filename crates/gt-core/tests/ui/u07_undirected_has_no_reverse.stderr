@@ -1,0 +1,5 @@
+error[E0599]: no method named `reverse` found for struct `Und<G>` in the current scope
+  --> tests/ui/u07_undirected_has_no_reverse.rs:25:29
+   |
+25 |     let _ = (&g).undirect().reverse();
+   |                             ^^^^^^^ method not found in `Und<&AdjList>`

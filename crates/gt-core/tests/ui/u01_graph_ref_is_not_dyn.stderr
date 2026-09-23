@@ -1,0 +1,10 @@
+error[E0191]: the value of the associated type `Dir` in `HasDir` must be specified
+  --> tests/ui/u01_graph_ref_is_not_dyn.rs:20:33
+   |
+20 | fn takes_a_trait_object(_: &dyn GraphRef) {}
+   |                                 ^^^^^^^^
+   |
+help: specify the associated type
+   |
+20 | fn takes_a_trait_object(_: &dyn GraphRef<Dir = /* Type */>) {}
+   |                                         ++++++++++++++++++

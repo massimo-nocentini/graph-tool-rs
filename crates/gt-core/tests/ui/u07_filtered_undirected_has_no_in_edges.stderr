@@ -1,0 +1,19 @@
+error[E0599]: the method `in_edges` exists for struct `Filtered<Und<&AdjList>, MaskFilter<'_>>`, but its trait bounds were not satisfied
+  --> tests/ui/u07_filtered_undirected_has_no_in_edges.rs:34:15
+   |
+34 |     let _ = f.in_edges(VertexId::from_index(0));
+   |               ^^^^^^^^
+   |
+  ::: src/view/filtered.rs
+   |
+   | pub struct Filtered<G, F> {
+   | ------------------------- doesn't satisfy `_: Bidirectional`
+   |
+  ::: src/view/undirected.rs
+   |
+   | pub struct Und<G: HasDir<Dir = Directed>>(G);
+   | ----------------------------------------- doesn't satisfy `Und<&AdjList>: Bidirectional`
+   |
+   = note: the following trait bounds were not satisfied:
+           `Und<&AdjList>: Bidirectional`
+           which is required by `Filtered<Und<&AdjList>, MaskFilter<'_>>: Bidirectional`

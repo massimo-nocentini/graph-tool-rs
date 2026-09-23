@@ -1,0 +1,16 @@
+error[E0599]: the method `par_iter_mut` exists for struct `Vec<PyValue>`, but its trait bounds were not satisfied
+  --> tests/ui/u30_py_value_cannot_reach_rayon.rs:26:9
+   |
+26 |     map.par_iter_mut().for_each(|_v| {});
+   |         ^^^^^^^^^^^^
+   |
+  ::: $RUST/alloc/src/vec/mod.rs
+   |
+   | pub struct Vec<T, #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global> {
+   | ------------------------------------------------------------------------------------------------ doesn't satisfy `_: IntoParallelRefMutIterator<'_>`
+   |
+   = note: the following trait bounds were not satisfied:
+           `&mut Vec<PyValue>: IntoParallelIterator`
+           which is required by `Vec<PyValue>: rayon::iter::IntoParallelRefMutIterator<'_>`
+           `&mut [PyValue]: IntoParallelIterator`
+           which is required by `[PyValue]: rayon::iter::IntoParallelRefMutIterator<'_>`

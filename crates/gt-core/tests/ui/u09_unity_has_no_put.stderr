@@ -1,0 +1,5 @@
+error[E0599]: no method named `put` found for struct `Unity<T, K>` in the current scope
+  --> tests/ui/u09_unity_has_no_put.rs:17:7
+   |
+17 |     w.put(Id::<VertexTag>::from_index(0), 2.0);
+   |       ^^^ method not found in `Unity<f64, VertexTag>`

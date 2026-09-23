@@ -1,0 +1,7 @@
+error[E0599]: no associated function or constant named `R_IN` found for struct `gt_core::dir::Field<Undirected>` in the current scope
+  --> tests/ui/u01_field_in_is_directed_only.rs:21:34
+   |
+21 |     let _ = Field::<Undirected>::R_IN;
+   |                                  ^^^^ associated function or constant not found in `gt_core::dir::Field<Undirected>`
+   |
+   = note: the associated function or constant was found for `gt_core::dir::Field<Directed>`

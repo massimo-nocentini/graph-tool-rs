@@ -1,0 +1,7 @@
+error[E0046]: not all trait items implemented, missing: `log_reverse`
+  --> tests/ui/u21_inherent_lprob_leaves_log_reverse_missing.rs:54:1
+   |
+54 | impl GroupProposal for Potts {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `log_reverse` in implementation
+   |
+   = help: implement the missing item: `fn log_reverse(&self, _: Id<VertexTag>, _: Group, _: Group, _: f64, _: f64) -> f64 { todo!() }`

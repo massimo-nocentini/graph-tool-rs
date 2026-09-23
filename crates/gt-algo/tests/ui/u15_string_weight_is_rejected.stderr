@@ -1,0 +1,22 @@
+error[E0277]: the trait bound `String: ToF64` is not satisfied
+  --> tests/ui/u15_string_weight_is_rejected.rs:26:62
+   |
+26 |     let _ = weighted_out_degree(&g, VertexId::from_index(0), &w);
+   |             -------------------                              ^^ the trait `ToF64` is not implemented for `String`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `ToF64`:
+             f64
+             i16
+             i32
+             i64
+             u8
+note: required by a bound in `weighted_out_degree`
+  --> src/degree.rs
+   |
+   | pub fn weighted_out_degree<G, W>(g: G, v: VertexId, w: &W) -> f64
+   |        ------------------- required by a bound in this function
+...
+   |     W::Value: ToF64,
+   |               ^^^^^ required by this bound in `weighted_out_degree`

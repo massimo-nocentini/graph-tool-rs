@@ -1,0 +1,62 @@
+[package]
+name         = "gt-core"
+description  = "graph-tool core: adjacency storage, view algebra, property maps, value universe, deterministic parallelism."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[dependencies]
+rayon       = { workspace = true }
+rustc-hash  = { workspace = true }
+thiserror   = { workspace = true }
+rand        = { workspace = true }
+rand_chacha = { workspace = true }
+# Only reachable through `feature = "python"`, which gt-py enables. gt-core
+# owns `PyValue` so that `PropValue`'s seal cannot be re-opened downstream.
+pyo3        = { workspace = true, optional = true }
+
+[features]
+default = []
+## Enables `prop::value::PyValue` (the 15th member of the value universe).
+python     = ["dep:pyo3"]
+## Widen VertexId/EdgeId from u32 to u64 for >4.29e9-vertex graphs.
+## Whole-build switch, never a type parameter: see DESIGN.md D5.
+wide-index = []
+## Side table of generation counters, catching EdgeId ABA after recycling.
+id-generations = []
+
+# ---------------------------------------------------------------------------
+# Test harness (DESIGN.md section 16). The model-based `proptest` over
+# AdjList mutation sequences and the trybuild fixtures for the negative
+# guarantees in section 14 are the two things that keep "it compiles" from
+# being mistaken for evidence.
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+criterion = { workspace = true }
+proptest  = { workspace = true }
+trybuild  = { workspace = true }
+
+# `harness = false` on all three: criterion installs its own `main`, and
+# libtest's argument parsing would swallow criterion's.
+
+## Section 12's adjacency-stream claims, and defect #18: `add_edge` must be
+## O(1) push-swap (`graph_adjacency.hh:1192-1215`), never `insert`. The
+## 10k/20k/40k/80k ladder is what turns that from an assertion into a number.
+[[bench]]
+name    = "adjacency"
+harness = false
+
+## `ParBuilder` against serial `add_edge`: the deterministic replacement for
+## graph-tool's `set_concurrent` (defect #51).
+[[bench]]
+name    = "builder"
+harness = false
+
+## Section 12's stated loss: no FP reassociation. `chunked_sum::<LANES>`
+## restores instruction-level parallelism but not SIMD, and the ledger says
+## so; this is where that is checked rather than believed.
+[[bench]]
+name    = "reduce"
+harness = false

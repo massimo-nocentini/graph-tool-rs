@@ -1,0 +1,23 @@
+error[E0080]: evaluation panicked: value_subset! Bad: variant I16 is mapped to i32, whose KIND differs
+  --> tests/ui/u08_value_subset_transposed_row.rs:27:1
+   |
+27 | / value_subset!(
+28 | |     /// `I16` holds `i16` and `I32` holds `i32`. These are the other way round.
+29 | |     pub Bad, BadKernel, "value", Scalar,
+30 | |     { I16 => i32, I32 => i16 }
+31 | | );
+   | |_^ evaluation of `_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `value_subset` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: value_subset! Bad: variant I32 is mapped to i16, whose KIND differs
+  --> tests/ui/u08_value_subset_transposed_row.rs:27:1
+   |
+27 | / value_subset!(
+28 | |     /// `I16` holds `i16` and `I32` holds `i32`. These are the other way round.
+29 | |     pub Bad, BadKernel, "value", Scalar,
+30 | |     { I16 => i32, I32 => i16 }
+31 | | );
+   | |_^ evaluation of `_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `value_subset` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,11 @@
+error[E0599]: no method named `in_edges` found for struct `Und<G>` in the current scope
+  --> tests/ui/u01_und_has_no_in_edges.rs:21:15
+   |
+21 |     let _ = u.in_edges(VertexId::from_index(0));
+   |               ^^^^^^^^
+   |
+help: there is a method `edges` with a similar name, but with different arguments
+  --> src/graph.rs
+   |
+   |     fn edges(self) -> Self::Edges;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

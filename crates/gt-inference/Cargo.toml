@@ -1,0 +1,45 @@
+[package]
+name         = "gt-inference"
+description  = "Statistical inference: the reified-transition delta, the MCMC layering, and the stochastic block model."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[dependencies]
+gt-core     = { workspace = true }
+rayon       = { workspace = true }
+rand        = { workspace = true }
+rand_chacha = { workspace = true }
+thiserror   = { workspace = true }
+
+[features]
+default = []
+## Enable the O(E + B^2) from-scratch entropy recompute. The replacement for
+## graph-tool's `__test__ = True`, kept only for periodic drift checks --
+## the always-on per-move audit is O(#entries) and needs no feature.
+audit-full = []
+
+# ---------------------------------------------------------------------------
+# Test harness (DESIGN.md section 16). The SBM half of the mandated
+# model-based proptest lives here: random moves priced by the delta, checked
+# against a from-scratch entropy with a *real* lgamma.
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+criterion = { workspace = true }
+proptest  = { workspace = true }
+trybuild  = { workspace = true }
+
+## `Cache` is defect #34's replacement for three global mutable caches behind
+## a lying `[[gnu::const]]`. Threading `&Cache` explicitly is only the right
+## trade if the lookups stay cheap, so they are measured.
+[[bench]]
+name    = "entropy"
+harness = false
+
+## The move cycle itself: `record` -> `sparse_ds` (`entries_dS`) -> `commit`.
+## `entropy` measures the terms; this measures the loop D10 exists for.
+[[bench]]
+name    = "sbm"
+harness = false

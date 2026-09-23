@@ -1,0 +1,45 @@
+error[E0277]: the trait bound `Filtered<&AdjList, MaskFilter<'_>>: ExactIncidence` is not satisfied
+  --> tests/ui/u07_filtered_view_is_not_exact_sized.rs:27:20
+   |
+27 |     needs_a_length(f);
+   |     -------------- ^ the trait `ExactIncidence` is not implemented for `Filtered<&AdjList, MaskFilter<'_>>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+help: the trait `ExactIncidence` is implemented for `&AdjList<H>`
+  --> src/graph.rs
+   |
+   | impl<H: Lookup> ExactIncidence for &AdjList<H> {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `needs_a_length`
+  --> tests/ui/u07_filtered_view_is_not_exact_sized.rs:14:22
+   |
+14 | fn needs_a_length<G: ExactIncidence>(_: G)
+   |                      ^^^^^^^^^^^^^^ required by this bound in `needs_a_length`
+
+error[E0277]: the trait bound `FilterIncident<IncidentIter<'_>, MaskFilter<'_>>: ExactSizeIterator` is not satisfied
+  --> tests/ui/u07_filtered_view_is_not_exact_sized.rs:27:20
+   |
+27 |     needs_a_length(f);
+   |     -------------- ^ the trait `ExactSizeIterator` is not implemented for `FilterIncident<IncidentIter<'_>, MaskFilter<'_>>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+   = help: the following other types implement trait `ExactSizeIterator`:
+             &mut I
+             Args
+             ArgsOs
+             ArrayChunks<I, N>
+             ArrayWindows<'_, T, N>
+             Box<I, A>
+             Chunks<'_, T>
+             ChunksExact<'_, T>
+           and $N others
+note: required by a bound in `needs_a_length`
+  --> tests/ui/u07_filtered_view_is_not_exact_sized.rs:16:13
+   |
+14 | fn needs_a_length<G: ExactIncidence>(_: G)
+   |    -------------- required by a bound in this function
+15 | where
+16 |     G::Out: ExactSizeIterator,
+   |             ^^^^^^^^^^^^^^^^^ required by this bound in `needs_a_length`

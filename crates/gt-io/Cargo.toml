@@ -1,0 +1,27 @@
+[package]
+name         = "gt-io"
+description  = "Readers and writers for the .gt, GraphML, DOT and CSV graph formats."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[dependencies]
+gt-core   = { workspace = true }
+thiserror = { workspace = true }
+
+# ---------------------------------------------------------------------------
+# Test harness (DESIGN.md section 16).
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+criterion = { workspace = true }
+proptest  = { workspace = true }
+trybuild  = { workspace = true }
+
+## Defect #52: adjacency order changes after removals, so `.gt` emits in
+## `EdgeId` order to stay byte-reproducible. That costs an ordering pass, and
+## the cost belongs in the ledger.
+[[bench]]
+name    = "roundtrip"
+harness = false

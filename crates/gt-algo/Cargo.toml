@@ -1,0 +1,34 @@
+[package]
+name         = "gt-algo"
+description  = "Graph algorithms written once against gt-core's view traits."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[dependencies]
+gt-core = { workspace = true }
+rayon   = { workspace = true }
+
+# ---------------------------------------------------------------------------
+# Test harness (DESIGN.md section 16).
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+criterion = { workspace = true }
+proptest  = { workspace = true }
+trybuild  = { workspace = true }
+
+## The kernels are generic over `GraphRef`; the ledger's cross-crate inlining
+## claim (section 10) is only meaningful if the generic call is measured
+## through the crate edge, which is exactly what a gt-algo bench does.
+[[bench]]
+name    = "kernels"
+harness = false
+
+## The weight-map axis of section 12: `Unity` / `Constant` / `DenseProp`
+## through the same selector, so the difference between the three numbers is
+## the monomorphisation and nothing else.
+[[bench]]
+name    = "weights"
+harness = false

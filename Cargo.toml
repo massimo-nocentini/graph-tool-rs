@@ -1,0 +1,94 @@
+# graph-tool 3.8 -> Rust port. Architecture of record: docs/DESIGN.md
+[workspace]
+resolver = "3"
+members = [
+    "crates/gt-core",
+    "crates/gt-algo",
+    "crates/gt-inference",
+    "crates/gt-io",
+    "crates/gt-py",
+]
+
+[workspace.package]
+version    = "0.1.0"
+edition    = "2024"
+rust-version = "1.98"
+license    = "LGPL-3.0-or-later"
+repository = "https://github.com/massimo-nocentini/graph-tool-rs"
+
+[workspace.dependencies]
+gt-core      = { path = "crates/gt-core" }
+gt-algo      = { path = "crates/gt-algo" }
+gt-inference = { path = "crates/gt-inference" }
+gt-io        = { path = "crates/gt-io" }
+
+rayon       = "1.12"
+rustc-hash  = "2.1"
+thiserror   = "2"
+rand        = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
+rand_chacha = "0.9"
+pyo3        = { version = "0.22", default-features = false, features = ["macros"] }
+
+# ---------------------------------------------------------------------------
+# Dev-only. DESIGN.md section 16 ("Testing discipline this port requires")
+# makes all three mandatory from the first unit rather than optional extras,
+# because every source design said "verified by compiling it" and shipped a
+# defect its own claims denied:
+#
+#   proptest  - model-based sequences against a naive reference: AdjList
+#               (add/remove/clear/swap_remove, `validate()` after every op) and
+#               the SBM (random moves priced against a from-scratch entropy).
+#   trybuild  - one compile-fail fixture per negative guarantee in section 14.
+#               The six diagnostics DESIGN.md claims to have verified regress
+#               silently the first time someone adds a blanket impl unless a
+#               fixture pins each one.
+#   criterion - section 12 is a ledger with numbers in it, and numbers rot.
+# ---------------------------------------------------------------------------
+proptest = "1.11"
+trybuild = "1.0"
+# `plotters` and criterion's own `rayon` are switched off. The ledger wants
+# numbers on stdout, not an SVG, and a crate whose determinism story *is* its
+# thread plan (par::plan) should not acquire a second, independently configured
+# rayon pool in its dev dependency graph.
+criterion = { version = "0.8", default-features = false, features = [
+    "cargo_bench_support",
+] }
+
+# ---------------------------------------------------------------------------
+# Profiles. Rationale in docs/DESIGN.md section 10 ("Instantiation budget").
+# ---------------------------------------------------------------------------
+
+[profile.release]
+# Fat LTO: the port's hot paths cross crate boundaries by construction
+# (gt-algo kernels generic over gt-core's `GraphRef`, gt-inference pricing
+# over gt-core's `ReadProp`). Without cross-crate inlining every `Incident`
+# manufacture and every `IS_UNITY` const-fold is lost at the crate edge.
+lto           = "fat"
+codegen-units = 1
+opt-level     = 3
+# Abort, not unwind: no kernel in gt-core/gt-algo/gt-inference is
+# exception-safe by design (graph-tool's C++ equivalents are not either), and
+# unwind tables across ~21k monomorphised leaves are pure size. The PyO3
+# boundary converts `Result` into `PyErr`; it never relies on catch_unwind.
+panic         = "abort"
+debug         = 1          # line tables only: perf/objdump without the size
+overflow-checks = false
+incremental   = false
+
+[profile.release.package."*"]
+# Dependencies are stable; never re-optimise them per workspace change.
+codegen-units = 1
+
+[profile.dev]
+opt-level     = 1          # a debug SBM sweep runs the always-on delta audit
+debug         = true
+codegen-units = 256        # ~21k leaves; parallelism matters more than quality
+overflow-checks = true     # catches the `_n_edges -= 2` class in gt-core
+
+[profile.dev.package."*"]
+opt-level = 3              # rayon/rand are never the thing under debug
+
+# Benchmarks must see release codegen but keep symbol names readable.
+[profile.bench]
+inherits      = "release"
+debug         = 2

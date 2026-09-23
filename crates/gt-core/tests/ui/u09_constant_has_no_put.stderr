@@ -1,0 +1,5 @@
+error[E0599]: no method named `put` found for struct `Constant<T, K>` in the current scope
+  --> tests/ui/u09_constant_has_no_put.rs:14:7
+   |
+14 |     w.put(Id::<VertexTag>::from_index(0), 2.0);
+   |       ^^^ method not found in `Constant<f64, VertexTag>`

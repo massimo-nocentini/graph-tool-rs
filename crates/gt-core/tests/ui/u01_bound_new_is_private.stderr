@@ -1,0 +1,10 @@
+error[E0624]: associated function `new` is private
+  --> tests/ui/u01_bound_new_is_private.rs:19:51
+   |
+19 |     let forged: VertexBound = Bound::<VertexTag>::new(GraphId::fresh(), 7);
+   |                                                   ^^^ private associated function
+   |
+  ::: src/bound.rs
+   |
+   |     pub(crate) const fn new(graph: GraphId, n: usize) -> Self {
+   |     --------------------------------------------------------- private associated function defined here

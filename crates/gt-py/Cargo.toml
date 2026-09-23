@@ -1,0 +1,52 @@
+[package]
+name         = "gt-py"
+description  = "The Python boundary: type erasure, view dispatch, and the GIL discipline."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[lib]
+# `rlib` for the rest of the workspace to link against, `cdylib` for CPython to
+# import. Both are needed unconditionally: a Cargo *feature* cannot add a crate
+# type, and `pyo3/extension-module` only suppresses the `-l python3.x` the build
+# script would otherwise emit. With `["rlib"]` alone, `cargo build -p gt-py
+# --features extension-module` compiles `PyInit__rust` and then discards it, and
+# no importable `.so` is produced at all.
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+gt-core      = { workspace = true, features = ["python"] }
+gt-algo      = { workspace = true }
+gt-inference = { workspace = true }
+gt-io        = { workspace = true }
+pyo3         = { workspace = true }
+rayon        = { workspace = true }
+
+[features]
+default = []
+## Build an importable CPython extension module.
+extension-module = ["pyo3/extension-module"]
+
+# ---------------------------------------------------------------------------
+# Test harness (DESIGN.md section 16). gt-py's share of section 14 is almost
+# entirely negative guarantees -- `PyValue: !Send`, `Rev<Und<_>>` unnameable,
+# a seventh `ViewKind` -- so trybuild is the load-bearing dependency here.
+#
+# Note that any binary target in this crate (bench or integration test) links
+# libpython, unlike the `rlib` the `[lib]` section above keeps default. That
+# is unavoidable for `tests/`, so a bench costs nothing extra.
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+criterion = { workspace = true }
+proptest  = { workspace = true }
+trybuild  = { workspace = true }
+
+## Section 12's boundary claim: one `TypeId`-class compare against up to three
+## `any_cast` probes per candidate plus a try/catch on the Python path
+## (`dispatch.hh:86-88`). `AnyGraph::dispatch` touches no Python object, so
+## the number is measurable without an interpreter.
+[[bench]]
+name    = "dispatch"
+harness = false
