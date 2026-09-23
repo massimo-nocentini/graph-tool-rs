@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Graphviz DOT."><title>gt_io::dot - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module dot</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_io/index.html">gt_io</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module dot</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#what-dot-does-not-carry" title="What DOT does not carry">What DOT does not carry</a></li><li><a href="#line-numbers" title="Line numbers">Line numbers</a></li></ul><h3><a href="#constants">Module Items</a></h3><ul class="block"><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>io</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_io</a></div><h1>Module <span>dot</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_io/dot.rs.html#1-1276">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Graphviz DOT.</p>
+<p>Ports the reader of <code>src/graph/read_graphviz_new.cpp</code> (the tokenizer at
+<code>:138-312</code>, the parser at <code>:361-723</code> and <code>translate_results_to_graph</code> at
+<code>:752-777</code>) and the writer of
+<code>src/boost-workaround/boost/graph/graphviz.hpp</code>
+(<code>write_graphviz</code>, <code>:252-288</code>, with <code>dynamic_vertex_properties_writer</code> and
+<code>dynamic_properties_writer</code>, <code>:520-577</code>), as <code>graph_io.cc:334</code> and <code>:414</code>
+call them.</p>
+<h3 id="what-dot-does-not-carry"><a class="doc-anchor" href="#what-dot-does-not-carry">§</a>What DOT does <em>not</em> carry</h3>
+<ul>
+<li><strong>Types.</strong> Every attribute is a string, on the way in and on the way
+out: <code>set_node_property</code> hands <code>dp</code> a <code>std::string</code>
+(<code>graphviz.hpp:785-790</code>), and <code>create_dynamic_map</code> therefore builds a
+<code>string</code> map (<code>graph_io.cc:217-261</code>). A document read back from DOT has
+<a href="gt_core::prop::ValueKind::Str"><code>ValueKind::Str</code></a> columns even where the
+document written out had <code>int64_t</code> ones. This is the “best-effort
+typing” the unit specification means, and <a href="fn.read.html" title="fn gt_io::dot::read"><code>read</code></a> does not try to guess
+better: guessing would make <code>1</code>, <code>1.0</code> and <code>true</code> three different
+members depending on the data.</li>
+<li><strong>Graph properties.</strong> <code>write_graphviz</code> passes <code>default_writer()</code> as the
+graph-property writer (<code>graphviz.hpp:626</code>), which emits nothing, so
+[<code>write</code>] drops them – exactly as <code>g.save("x.dot")</code> does. <a href="fn.read.html" title="fn gt_io::dot::read"><code>read</code></a> does
+parse <code>name = value</code> statements into graph properties, because files
+from other tools have them.</li>
+<li><strong>Vertex identity.</strong> <code>translate_results_to_graph</code> walks
+<code>std::map&lt;node_name, properties&gt;</code> (<code>:754</code>), so vertices are created in
+<em>lexicographic order of their names</em>, not in the order the file mentions
+them. A ten-vertex graph written by [<code>write</code>] and read back has vertex
+<code>2</code> where it had vertex <code>10</code>. The names survive in the vertex property
+<a href="constant.NODE_ID_KEY.html" title="constant gt_io::dot::NODE_ID_KEY"><code>NODE_ID_KEY</code></a>, which is how the mapping is recovered, and it is why
+the round-trip test asserts topology <em>up to</em> that map.</li>
+</ul>
+<h3 id="line-numbers"><a class="doc-anchor" href="#line-numbers">§</a>Line numbers</h3>
+<p><code>bad_graphviz_syntax</code> carries the offending token and no position at all
+(<code>graphviz.hpp:673-679</code>, <code>read_graphviz_new.cpp:115-117</code>). <a href="../error/enum.IoError.html#variant.Parse" title="variant gt_io::error::IoError::Parse"><code>IoError::Parse</code></a>
+has a line, so the lexer here counts them; the message keeps the C++
+wording and its <code>(token is ...)</code> tail.</p>
+</div></details><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.NODE_ID_KEY.html" title="constant gt_io::dot::NODE_ID_KEY">NODE_<wbr>ID_<wbr>KEY</a></dt><dd>The vertex property the reader fills with each node’s name, and the writer
+uses as the node name when it is present.</dd><dt><a class="constant" href="constant.NODE_INDEX_KEY.html" title="constant gt_io::dot::NODE_INDEX_KEY">NODE_<wbr>INDEX_<wbr>KEY</a></dt><dd>The name <code>graphviz_insert_index</code> gives the index map when there is no
+<a href="constant.NODE_ID_KEY.html" title="constant gt_io::dot::NODE_ID_KEY"><code>NODE_ID_KEY</code></a> (<code>graph_io.cc:399</code>). The writer never emits it as an
+attribute, because it <em>is</em> the node name.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.read.html" title="fn gt_io::dot::read">read</a></dt><dd>Read a DOT document. Property typing is best-effort: DOT has none.</dd><dt><a class="fn" href="fn.write.html" title="fn gt_io::dot::write">write</a></dt><dd>Write a DOT document.</dd></dl></section></div></main></body></html>

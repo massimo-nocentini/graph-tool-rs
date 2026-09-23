@@ -28,7 +28,7 @@
 //! when the caller wants a triangle *count*. Both repairs are divisions
 //! applied to a degree summation, and a degree summation over an undirected
 //! view is exactly the arithmetic that makes a filtered `num_edges` wrong
-//! (DESIGN.md D3). Here the kernels enumerate the edge set once, build a
+//! ([DESIGN](gt_core::design) D3). Here the kernels enumerate the edge set once, build a
 //! sorted simple adjacency, and count each triangle at its unique `u < v < w`
 //! witness -- so there is no multiplicity to divide out and no division to get
 //! wrong.

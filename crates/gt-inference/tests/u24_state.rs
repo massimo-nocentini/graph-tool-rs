@@ -448,7 +448,7 @@ fn group_locks_are_ordered_and_diagonal_safe() {
 
 /// The trait bounds themselves: `BlockCommitShared: BlockView + Sync`, so a
 /// shared reference to a committing state crosses a thread boundary. This is
-/// the capability three of the six source designs deleted (DESIGN.md D9).
+/// the capability three of the six source designs deleted (`gt_core::design` D9).
 #[test]
 fn a_shared_committing_state_is_sync() {
     fn assert_sync<T: BlockCommitShared>(_: &T) {}

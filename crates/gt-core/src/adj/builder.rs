@@ -1,6 +1,6 @@
 //! Parallel bulk construction.
 //!
-//! ## What this replaces, and why it is a different shape (DESIGN.md D9)
+//! ## What this replaces, and why it is a different shape ([DESIGN](crate::design) D9)
 //!
 //! graph-tool supports concurrent mutation of a *live* graph:
 //! `set_concurrent(true)` (`graph_adjacency.hh:451`), a per-thread

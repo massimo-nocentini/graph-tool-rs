@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The importable extension module."><title>gt_py::module - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_py" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module module</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_py/index.html">gt_py</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module module</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#where-the-fifteenth-member-went" title="Where the fifteenth member went">Where the fifteenth member went</a></li><li><a href="#errors" title="Errors">Errors</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>py</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_py</a></div><h1>Module <span>module</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_py/module.rs.html#1-837">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The importable extension module.</p>
+<p>Every entry point follows the same three-step shape, and the order matters:</p>
+<ol>
+<li>take the <code>Python&lt;'py&gt;</code> token and borrow the graph and the property maps;</li>
+<li>size every map with
+<a href="gt_core::prop::DenseProp::sized_for"><code>DenseProp::sized_for</code></a> – read-only
+maps too, because graph-tool’s checked map auto-grows on read
+(<code>fast_vector_property_map.hh:132-136</code>; the plan’s <code>:129</code> is three lines
+above the <code>soft_reserve(i + 1)</code> that actually does it), so <code>g.vp.x[v]</code>
+on a never-written map must keep returning the default;</li>
+<li>hand the sized views to a kernel inside <a href="../gil/fn.detach.html" title="fn gt_py::gil::detach"><code>detach</code></a>,
+whose <code>F: Send</code> bound is what keeps the token out of the region.</li>
+</ol>
+<p>Step 2 is the two-phase reserve-then-hand-out that <code>_get_any</code>
+(<code>graph_tool/__init__.py:363-373</code>) implements in nine lines of Python. It
+does not disappear; it moves from Python into one place in Rust, where the
+type system makes forgetting it impossible rather than merely unlikely.</p>
+<h3 id="where-the-fifteenth-member-went"><a class="doc-anchor" href="#where-the-fifteenth-member-went">§</a>Where the fifteenth member went</h3>
+<p><code>#[pyclass]</code> requires <code>Send</code>, and [<code>PyValue</code>] is <code>!Send</code> by construction
+(<a href="gt_core::design">DESIGN</a> section 7). That is not an obstacle to work around; it is the
+guarantee arriving at the boundary, and the only honest way to spell it is
+<strong>two classes</strong>:</p>
+<ul>
+<li><a href="struct.PyPropertyMap.html" title="struct gt_py::module::PyPropertyMap"><code>PyPropertyMap</code></a> carries the fourteen GIL-free members. It is <code>Send</code>,
+so CPython may hand it to any thread, and its kernels run inside
+<a href="../gil/fn.detach.html" title="fn gt_py::gil::detach"><code>detach</code></a>.</li>
+<li><a href="struct.PyObjectPropertyMap.html" title="struct gt_py::module::PyObjectPropertyMap"><code>PyObjectPropertyMap</code></a> carries <code>python::object</code>. It is
+<code>#[pyclass(unsendable)]</code>, because the store it holds is <code>!Send</code> and the
+compiler will not be persuaded otherwise, and every one of its loops
+holds the token.</li>
+</ul>
+<p>Folding both into one class would have forced <code>unsendable</code> onto the
+fourteen members that do not need it, which is the pessimisation
+<code>graph_properties_copy.cc:35-42</code> makes in the other direction – and one
+<code>unsendable</code> class is a smaller lie than fourteen.</p>
+<h3 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h3>
+<p>No entry point here panics on a caller error. <code>GraphError</code>, <code>PropError</code> and
+<code>DispatchError</code> become a <code>PyErr</code> at the boundary and nothing above relies
+on <code>catch_unwind</code>, which is what <a href="gt_core::design">DESIGN</a> section 10 promises when
+<code>[profile.release] panic = "abort"</code> removes unwinding entirely. The
+exception classes are graph-tool’s own translation table
+(<code>graph_bind.cc:63-76</code>): <code>ValueException -&gt; ValueError</code>,
+<code>GraphException -&gt; RuntimeError</code>.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.PyGraph.html" title="struct gt_py::module::PyGraph">PyGraph</a></dt><dd>A graph, owned by Python.</dd><dt><a class="struct" href="struct.PyObjectPropertyMap.html" title="struct gt_py::module::PyObjectPropertyMap">PyObject<wbr>Property<wbr>Map</a></dt><dd>A <code>python::object</code> property map, owned by Python.</dd><dt><a class="struct" href="struct.PyPropertyMap.html" title="struct gt_py::module::PyPropertyMap">PyProperty<wbr>Map</a></dt><dd>A property map, owned by Python.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.register.html" title="fn gt_py::module::register">register</a></dt><dd>Register the module.</dd></dl></section></div></main></body></html>

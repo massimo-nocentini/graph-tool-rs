@@ -56,7 +56,7 @@ pub struct Block {
     out_len: Raw,
 }
 
-// DESIGN.md section 11: one `Vec` plus one `Raw`, padded to four words. 32
+// `gt_core::design` section 11: one `Vec` plus one `Raw`, padded to four words. 32
 // bytes at the default `Raw = u32`, which `tests/u02_block.rs` asserts
 // literally.
 const _: () = assert!(size_of::<Block>() == size_of::<Vec<AdjEntry>>() + size_of::<usize>());
@@ -297,7 +297,7 @@ impl Block {
 }
 
 // ---------------------------------------------------------------------------
-// The splices are `pub(crate)` on purpose -- DESIGN.md section 3: "Mutation is
+// The splices are `pub(crate)` on purpose -- gt_core::design section 3: "Mutation is
 // exactly two private primitives" -- so the sequences that exercise them
 // cannot be written from `tests/u02_block.rs`. What that file can reach lives
 // there; the rest is here, which is the one exception the unit's file
@@ -678,7 +678,7 @@ mod tests {
     /// in-half. A transliteration reaching for `Vec::insert` passes every
     /// correctness test above and is quadratic; a judge measured the
     /// transliterated form at 20.8 / 51.6 / 207.6 / 876.3 ms on this ladder,
-    /// i.e. ~4x per doubling (DESIGN.md section 3).
+    /// i.e. ~4x per doubling ([DESIGN](crate::design) section 3).
     #[test]
     fn insert_out_is_not_quadratic() {
         const REPS: usize = 25;

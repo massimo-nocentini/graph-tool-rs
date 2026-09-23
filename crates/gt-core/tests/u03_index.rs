@@ -4,7 +4,7 @@
 //! checked from in here, because they are about what a *user* of `gt-core`
 //! can observe:
 //!
-//! * [`EdgeSlot`] is four [`Raw`]s wide. That is the number DESIGN.md D12
+//! * [`EdgeSlot`] is four [`Raw`]s wide. That is the number `gt_core::design` D12
 //!   spends to make `remove_edge` take a bare [`EdgeId`] -- 16 bytes per edge
 //!   against graph-tool's 8 (`_epos`, `graph_adjacency.hh:620`) -- and the
 //!   reason the non-slot configuration does not ship. A silent growth to 24
@@ -46,7 +46,7 @@ fn an_edge_slot_is_two_endpoints_and_two_positions_and_nothing_else() {
     assert_eq!(size_of::<EdgeSlot>(), 4 * size_of::<Raw>());
     assert_eq!(align_of::<EdgeSlot>(), align_of::<Raw>());
     #[cfg(not(feature = "wide-index"))]
-    assert_eq!(size_of::<EdgeSlot>(), 16, "DESIGN.md D12 quotes 16 bytes");
+    assert_eq!(size_of::<EdgeSlot>(), 16, "gt_core::design D12 quotes 16 bytes");
     // Liveness is carried inside the slot (`out_pos == Raw::MAX`), not beside
     // it: `Option<EdgeSlot>` has no niche to use, so the obvious alternative
     // would cost another `Raw`'s worth of padding per edge.

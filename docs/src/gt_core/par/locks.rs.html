@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gt-core/src/par/locks.rs`."><title>locks.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gt_core/par/</div>locks.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Row locking for concurrent commits.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! ## Why this exists at all ([DESIGN](crate::design) D9)
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//! Three of the six source designs independently removed graph-tool's
+<a href=#6 id=6 data-nosnippet>6</a>//! concurrent mutation and each scored the removal as a win. It is not a win.
+<a href=#7 id=7 data-nosnippet>7</a>//! `blockmodel/state.hh:152` builds `_group_mutex`, `:343-348` takes ordered
+<a href=#8 id=8 data-nosnippet>8</a>//! pair row locks via `do_lock&lt;lock_t::shared&gt;`, and `:451` sizes
+<a href=#9 id=9 data-nosnippet>9</a>//! `_m_entries_pool` to `get_num_threads()` -- the library commits moves from
+<a href=#10 id=10 data-nosnippet>10</a>//! several threads, and the scratch pool exists precisely for that.
+<a href=#11 id=11 data-nosnippet>11</a>//!
+<a href=#12 id=12 data-nosnippet>12</a>//! What Rust adds is not a prohibition but an enforcement: `partition.hh:78-84`
+<a href=#13 id=13 data-nosnippet>13</a>//! mixes a plain `_count[r] += w` between two `#pragma omp atomic` statements,
+<a href=#14 id=14 data-nosnippet>14</a>//! correct only if every caller holds `_group_mutex[r]` -- a convention, not a
+<a href=#15 id=15 data-nosnippet>15</a>//! type. Here the row can only be reached through its guard.
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">use </span>std::sync::{Mutex, MutexGuard, PoisonError};
+<a href=#18 id=18 data-nosnippet>18</a>
+<a href=#19 id=19 data-nosnippet>19</a><span class="doccomment">/// Two distinct rows, or one row named twice.
+<a href=#20 id=20 data-nosnippet>20</a>///
+<a href=#21 id=21 data-nosnippet>21</a>/// The variants matter. Returning `None` for `r == s` forces every caller to
+<a href=#22 id=22 data-nosnippet>22</a>/// hand-write a diagonal branch, and the diagonal is not an error case: it is
+<a href=#23 id=23 data-nosnippet>23</a>/// the block-graph self-loop `_mrs[r][r]`, which is common. `do_ulock_pair`
+<a href=#24 id=24 data-nosnippet>24</a>/// (`parallel_util.hh:247-256`) handles it transparently by locking once.
+<a href=#25 id=25 data-nosnippet>25</a></span><span class="kw">pub enum </span>Pair&lt;<span class="lifetime">'a</span>, T&gt; {
+<a href=#26 id=26 data-nosnippet>26</a>    <span class="doccomment">/// `r` and `s` were distinct; the references are in **caller order**.
+<a href=#27 id=27 data-nosnippet>27</a>    </span>Two(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T, <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T),
+<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// `r == s`; one reference.
+<a href=#29 id=29 data-nosnippet>29</a>    </span>Same(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T),
+<a href=#30 id=30 data-nosnippet>30</a>}
+<a href=#31 id=31 data-nosnippet>31</a>
+<a href=#32 id=32 data-nosnippet>32</a><span class="doccomment">/// Borrow two rows of a slice mutably, in caller order.
+<a href=#33 id=33 data-nosnippet>33</a>///
+<a href=#34 id=34 data-nosnippet>34</a>/// Caller order is the whole point. A version returning `[&amp;mut T; 2]` sorted
+<a href=#35 id=35 data-nosnippet>35</a>/// by index silently transposes: `pair_mut(xs, Group(3), Group(1))` hands back
+<a href=#36 id=36 data-nosnippet>36</a>/// `[&amp;mut xs[1], &amp;mut xs[3]]`, so a caller writing `pr` and `ps` positionally
+<a href=#37 id=37 data-nosnippet>37</a>/// updates the wrong group. graph-tool does not have that bug -- it sorts only
+<a href=#38 id=38 data-nosnippet>38</a>/// for `std::lock`'s deadlock avoidance and keeps `r` and `s` by name -- and a
+<a href=#39 id=39 data-nosnippet>39</a>/// port must not introduce it.
+<a href=#40 id=40 data-nosnippet>40</a>///
+<a href=#41 id=41 data-nosnippet>41</a>/// Returns `None` if either index is out of range, `Same` if `r == s`.
+<a href=#42 id=42 data-nosnippet>42</a></span><span class="kw">pub fn </span>pair_mut&lt;T&gt;(xs: <span class="kw-2">&amp;mut </span>[T], r: usize, s: usize) -&gt; <span class="prelude-ty">Option</span>&lt;Pair&lt;<span class="lifetime">'_</span>, T&gt;&gt; {
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="comment">// The diagonal first: `get_disjoint_mut` rejects `[r, r]` as overlapping,
+<a href=#44 id=44 data-nosnippet>44</a>    // and `r == s` is not an error here -- it is `_mrs[r][r]`.
+<a href=#45 id=45 data-nosnippet>45</a>    </span><span class="kw">if </span>r == s {
+<a href=#46 id=46 data-nosnippet>46</a>        <span class="kw">return </span>xs.get_mut(r).map(Pair::Same);
+<a href=#47 id=47 data-nosnippet>47</a>    }
+<a href=#48 id=48 data-nosnippet>48</a>
+<a href=#49 id=49 data-nosnippet>49</a>    <span class="comment">// Sorted only to mirror `std::lock`'s deadlock-avoidance discipline in
+<a href=#50 id=50 data-nosnippet>50</a>    // `do_ulock_pair`; the pair is then re-normalised to caller order, which
+<a href=#51 id=51 data-nosnippet>51</a>    // is the part `do_ulock_pair` keeps and a sorted-array API loses. The
+<a href=#52 id=52 data-nosnippet>52</a>    // `Err` covers both out-of-range indices; overlap is impossible here.
+<a href=#53 id=53 data-nosnippet>53</a>    </span><span class="kw">let </span>(lo, hi) = <span class="kw">if </span>r &lt; s { (r, s) } <span class="kw">else </span>{ (s, r) };
+<a href=#54 id=54 data-nosnippet>54</a>    <span class="kw">let </span>[a, b] = xs.get_disjoint_mut([lo, hi]).ok()<span class="question-mark">?</span>;
+<a href=#55 id=55 data-nosnippet>55</a>
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="prelude-val">Some</span>(<span class="kw">if </span>r &lt; s {
+<a href=#57 id=57 data-nosnippet>57</a>        Pair::Two(a, b)
+<a href=#58 id=58 data-nosnippet>58</a>    } <span class="kw">else </span>{
+<a href=#59 id=59 data-nosnippet>59</a>        Pair::Two(b, a)
+<a href=#60 id=60 data-nosnippet>60</a>    })
+<a href=#61 id=61 data-nosnippet>61</a>}
+<a href=#62 id=62 data-nosnippet>62</a>
+<a href=#63 id=63 data-nosnippet>63</a><span class="doccomment">/// Per-row mutexes, acquired in `(min, max)` order.
+<a href=#64 id=64 data-nosnippet>64</a>///
+<a href=#65 id=65 data-nosnippet>65</a>/// The port of `_group_mutex` (`blockmodel/state.hh:152`).
+<a href=#66 id=66 data-nosnippet>66</a>///
+<a href=#67 id=67 data-nosnippet>67</a>/// ## Two deliberate divergences from the C++
+<a href=#68 id=68 data-nosnippet>68</a>///
+<a href=#69 id=69 data-nosnippet>69</a>/// * `do_lock` (`parallel_util.hh:84-86`) calls `std::lock`, whose order is
+<a href=#70 id=70 data-nosnippet>70</a>///   an unspecified try-lock dance. A fixed `(min, max)` order is equally
+<a href=#71 id=71 data-nosnippet>71</a>///   deadlock-free and additionally *deterministic*, which is the property
+<a href=#72 id=72 data-nosnippet>72</a>///   the rest of `par` is built around.
+<a href=#73 id=73 data-nosnippet>73</a>/// * A `std::mutex` has no poison state. The guarded datum here is `()`, so
+<a href=#74 id=74 data-nosnippet>74</a>///   there is no invariant a panicking closure can leave broken; a poisoned
+<a href=#75 id=75 data-nosnippet>75</a>///   row is recovered rather than propagated, and the panic reaches the
+<a href=#76 id=76 data-nosnippet>76</a>///   caller by itself. Otherwise one panicking commit would wedge its two
+<a href=#77 id=77 data-nosnippet>77</a>///   groups for the rest of the process.
+<a href=#78 id=78 data-nosnippet>78</a></span><span class="kw">pub struct </span>RowLocks {
+<a href=#79 id=79 data-nosnippet>79</a>    rows: Box&lt;[Mutex&lt;()&gt;]&gt;,
+<a href=#80 id=80 data-nosnippet>80</a>}
+<a href=#81 id=81 data-nosnippet>81</a>
+<a href=#82 id=82 data-nosnippet>82</a><span class="doccomment">/// Acquire one row, ignoring poison. See the note on [`RowLocks`].
+<a href=#83 id=83 data-nosnippet>83</a></span><span class="attr">#[inline]
+<a href=#84 id=84 data-nosnippet>84</a></span><span class="kw">fn </span>acquire(m: <span class="kw-2">&amp;</span>Mutex&lt;()&gt;) -&gt; MutexGuard&lt;<span class="lifetime">'_</span>, ()&gt; {
+<a href=#85 id=85 data-nosnippet>85</a>    m.lock().unwrap_or_else(PoisonError::into_inner)
+<a href=#86 id=86 data-nosnippet>86</a>}
+<a href=#87 id=87 data-nosnippet>87</a>
+<a href=#88 id=88 data-nosnippet>88</a><span class="kw">impl </span>RowLocks {
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// One mutex per row.
+<a href=#90 id=90 data-nosnippet>90</a>    </span><span class="kw">pub fn </span>new(n: usize) -&gt; <span class="self">Self </span>{
+<a href=#91 id=91 data-nosnippet>91</a>        RowLocks {
+<a href=#92 id=92 data-nosnippet>92</a>            rows: (<span class="number">0</span>..n).map(|<span class="kw">_</span>| Mutex::new(())).collect(),
+<a href=#93 id=93 data-nosnippet>93</a>        }
+<a href=#94 id=94 data-nosnippet>94</a>    }
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// Number of rows.
+<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="attr">#[inline]
+<a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="self">self</span>.rows.len()
+<a href=#100 id=100 data-nosnippet>100</a>    }
+<a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// Whether there are no rows.
+<a href=#102 id=102 data-nosnippet>102</a>    </span><span class="attr">#[inline]
+<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#104 id=104 data-nosnippet>104</a>        <span class="self">self</span>.rows.is_empty()
+<a href=#105 id=105 data-nosnippet>105</a>    }
+<a href=#106 id=106 data-nosnippet>106</a>
+<a href=#107 id=107 data-nosnippet>107</a>    <span class="doccomment">/// Run `f` holding the locks for `r` and `s`, taken in `(min, max)` order
+<a href=#108 id=108 data-nosnippet>108</a>    /// so that two commits can never deadlock against each other.
+<a href=#109 id=109 data-nosnippet>109</a>    ///
+<a href=#110 id=110 data-nosnippet>110</a>    /// `r == s` locks **once**: `std::sync::Mutex` is not re-entrant, so the
+<a href=#111 id=111 data-nosnippet>111</a>    /// transparent diagonal of `do_ulock_pair` (`parallel_util.hh:247-256`) is
+<a href=#112 id=112 data-nosnippet>112</a>    /// not a convenience here, it is the difference between working and
+<a href=#113 id=113 data-nosnippet>113</a>    /// self-deadlocking.
+<a href=#114 id=114 data-nosnippet>114</a>    ///
+<a href=#115 id=115 data-nosnippet>115</a>    /// # Panics
+<a href=#116 id=116 data-nosnippet>116</a>    ///
+<a href=#117 id=117 data-nosnippet>117</a>    /// If `r` or `s` is not a row, matching `_group_mutex[r]`.
+<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">pub fn </span>with_pair&lt;R&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, r: usize, s: usize, f: <span class="kw">impl </span>FnOnce() -&gt; R) -&gt; R {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">if </span>r == s {
+<a href=#120 id=120 data-nosnippet>120</a>            <span class="kw">return </span><span class="self">self</span>.with_row(r, f);
+<a href=#121 id=121 data-nosnippet>121</a>        }
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">let </span>(lo, hi) = <span class="kw">if </span>r &lt; s { (r, s) } <span class="kw">else </span>{ (s, r) };
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="comment">// Both bounds are checked before either mutex is taken, so an
+<a href=#124 id=124 data-nosnippet>124</a>        // out-of-range `hi` cannot panic with `lo` held.
+<a href=#125 id=125 data-nosnippet>125</a>        </span><span class="kw">let </span>(mlo, mhi) = (<span class="kw-2">&amp;</span><span class="self">self</span>.rows[lo], <span class="kw-2">&amp;</span><span class="self">self</span>.rows[hi]);
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">let </span>_glo = acquire(mlo);
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>_ghi = acquire(mhi);
+<a href=#128 id=128 data-nosnippet>128</a>        f()
+<a href=#129 id=129 data-nosnippet>129</a>    }
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// Run `f` holding one row's lock.
+<a href=#132 id=132 data-nosnippet>132</a>    ///
+<a href=#133 id=133 data-nosnippet>133</a>    /// # Panics
+<a href=#134 id=134 data-nosnippet>134</a>    ///
+<a href=#135 id=135 data-nosnippet>135</a>    /// If `r` is not a row.
+<a href=#136 id=136 data-nosnippet>136</a>    </span><span class="kw">pub fn </span>with_row&lt;R&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, r: usize, f: <span class="kw">impl </span>FnOnce() -&gt; R) -&gt; R {
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">let </span>_g = acquire(<span class="kw-2">&amp;</span><span class="self">self</span>.rows[r]);
+<a href=#138 id=138 data-nosnippet>138</a>        f()
+<a href=#139 id=139 data-nosnippet>139</a>    }
+<a href=#140 id=140 data-nosnippet>140</a>}
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a><span class="attr">#[cfg(test)]
+<a href=#143 id=143 data-nosnippet>143</a></span><span class="kw">mod </span>tests {
+<a href=#144 id=144 data-nosnippet>144</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#145 id=145 data-nosnippet>145</a>
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="doccomment">/// D9's named case, by value rather than by index.
+<a href=#147 id=147 data-nosnippet>147</a>    </span><span class="attr">#[test]
+<a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">fn </span>pair_mut_is_in_caller_order() {
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">let </span><span class="kw-2">mut </span>xs = [<span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>];
+<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">match </span>pair_mut(<span class="kw-2">&amp;mut </span>xs, <span class="number">3</span>, <span class="number">1</span>) {
+<a href=#151 id=151 data-nosnippet>151</a>            <span class="prelude-val">Some</span>(Pair::Two(a, b)) =&gt; {
+<a href=#152 id=152 data-nosnippet>152</a>                <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>a, <span class="number">13</span>, <span class="string">"first reference must be r's row"</span>);
+<a href=#153 id=153 data-nosnippet>153</a>                <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>b, <span class="number">11</span>, <span class="string">"second reference must be s's row"</span>);
+<a href=#154 id=154 data-nosnippet>154</a>            }
+<a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected Two"</span>),
+<a href=#156 id=156 data-nosnippet>156</a>        }
+<a href=#157 id=157 data-nosnippet>157</a>    }
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="attr">#[test]
+<a href=#160 id=160 data-nosnippet>160</a>    </span><span class="kw">fn </span>pair_mut_diagonal_is_same() {
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span><span class="kw-2">mut </span>xs = [<span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>];
+<a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">match </span>pair_mut(<span class="kw-2">&amp;mut </span>xs, <span class="number">2</span>, <span class="number">2</span>) {
+<a href=#163 id=163 data-nosnippet>163</a>            <span class="prelude-val">Some</span>(Pair::Same(a)) =&gt; <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>a, <span class="number">12</span>),
+<a href=#164 id=164 data-nosnippet>164</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected Same"</span>),
+<a href=#165 id=165 data-nosnippet>165</a>        }
+<a href=#166 id=166 data-nosnippet>166</a>    }
+<a href=#167 id=167 data-nosnippet>167</a>
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="attr">#[test]
+<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="kw">fn </span>pair_mut_out_of_range_is_none() {
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span><span class="kw-2">mut </span>xs = [<span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>];
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="macro">assert!</span>(pair_mut(<span class="kw-2">&amp;mut </span>xs, <span class="number">4</span>, <span class="number">1</span>).is_none());
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="macro">assert!</span>(pair_mut(<span class="kw-2">&amp;mut </span>xs, <span class="number">1</span>, <span class="number">4</span>).is_none());
+<a href=#173 id=173 data-nosnippet>173</a>        <span class="macro">assert!</span>(pair_mut(<span class="kw-2">&amp;mut </span>xs, <span class="number">4</span>, <span class="number">4</span>).is_none());
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>empty: <span class="kw-2">&amp;mut </span>[i32] = <span class="kw-2">&amp;mut </span>[];
+<a href=#175 id=175 data-nosnippet>175</a>        <span class="macro">assert!</span>(pair_mut(empty, <span class="number">0</span>, <span class="number">0</span>).is_none());
+<a href=#176 id=176 data-nosnippet>176</a>    }
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="attr">#[test]
+<a href=#179 id=179 data-nosnippet>179</a>    </span><span class="kw">fn </span>row_locks_are_reentrant_on_the_diagonal() {
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span>l = RowLocks::new(<span class="number">4</span>);
+<a href=#181 id=181 data-nosnippet>181</a>        <span class="macro">assert_eq!</span>(l.len(), <span class="number">4</span>);
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="macro">assert!</span>(!l.is_empty());
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="macro">assert_eq!</span>(l.with_pair(<span class="number">2</span>, <span class="number">2</span>, || <span class="number">7</span>), <span class="number">7</span>);
+<a href=#184 id=184 data-nosnippet>184</a>    }
+<a href=#185 id=185 data-nosnippet>185</a>}
+</code></pre></div></section></main></body></html>

@@ -1,6 +1,6 @@
 //! The graph trait layer.
 //!
-//! ## Why there are no GATs here (DESIGN.md D1)
+//! ## Why there are no GATs here ([DESIGN](crate::design) D1)
 //!
 //! The obvious shape is `trait Incidence { type OutEdges<'a> where Self: 'a;
 //! fn out_edges(&self, v) -> Self::OutEdges<'_> }`. It does not work, and the
@@ -540,7 +540,7 @@ mod tests {
     /// `out_edge_iterator` and `in_edge_iterator` typedefs
     /// (`graph_reverse.hh:78-80`): a reversed view's out-edges are the base
     /// graph's in-edges **only**. A view yielding `base-out ∪ base-in` would be
-    /// an undirected view wearing a directed type, and DESIGN.md D3 records
+    /// an undirected view wearing a directed type, and [DESIGN](crate::design) D3 records
     /// that four of six views were wrong that way in one source design.
     #[test]
     fn rev_swaps_the_two_halves_and_does_not_union_them() {
@@ -668,7 +668,7 @@ mod tests {
     }
 
     /// The normalising constructors (D3), checked as values rather than as the
-    /// type table in DESIGN.md. `Rev<Und<_>>` and `Und<Und<_>>` are rejected by
+    /// type table in [DESIGN](crate::design). `Rev<Und<_>>` and `Und<Und<_>>` are rejected by
     /// the struct bound itself — see `tests/ui/u01_rev_und_is_unnameable.rs`.
     #[test]
     fn the_constructors_normalise() {

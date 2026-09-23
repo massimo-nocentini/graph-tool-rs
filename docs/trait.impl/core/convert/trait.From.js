@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["gt_core",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"struct\" href=\"gt_core/adj/struct.EdgeRef.html\" title=\"struct gt_core::adj::EdgeRef\">EdgeRef</a>&gt; for <a class=\"type\" href=\"gt_core/ids/type.EdgeId.html\" title=\"type gt_core::ids::EdgeId\">EdgeId</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"struct\" href=\"gt_core/adj/struct.Incident.html\" title=\"struct gt_core::adj::Incident\">Incident</a>&gt; for <a class=\"type\" href=\"gt_core/ids/type.EdgeId.html\" title=\"type gt_core::ids::EdgeId\">EdgeId</a>",0]]],["gt_io",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"struct\" href=\"https://doc.rust-lang.org/1.98.1/core/io/error/struct.Error.html\" title=\"struct core::io::error::Error\">Error</a>&gt; for <a class=\"enum\" href=\"gt_io/error/enum.IoError.html\" title=\"enum gt_io::error::IoError\">IoError</a>",0]]],["gt_py",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.98.1/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;PropError&gt; for <a class=\"enum\" href=\"gt_py/dispatch/enum.ViewError.html\" title=\"enum gt_py::dispatch::ViewError\">ViewError</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[760,419,297]}

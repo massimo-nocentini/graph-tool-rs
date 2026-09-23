@@ -179,7 +179,7 @@ impl Iterator for Edges<'_> {
 
     /// Two nested slice folds, so a full sweep never goes through the
     /// per-element state machine above. `count()`, and therefore
-    /// `num_edges() == edges().count()` (DESIGN.md section 4), lands here.
+    /// `num_edges() == edges().count()` ([DESIGN](crate::design) section 4), lands here.
     #[inline]
     fn fold<B, F: FnMut(B, EdgeRef) -> B>(self, init: B, mut f: F) -> B {
         let Edges {
@@ -369,7 +369,7 @@ mod tests {
 
     /// `ExactSizeIterator` is a promise, not a hint: `Filtered::new` memoises
     /// counts and `ExactIncidence` is a refinement unfiltered views implement
-    /// (DESIGN.md section 4). Both are wrong if `size_hint` is loose.
+    /// ([DESIGN](crate::design) section 4). Both are wrong if `size_hint` is loose.
     #[test]
     fn incident_size_hint_is_exact_at_every_step() {
         let es = entries(&RUN);

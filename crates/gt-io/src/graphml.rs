@@ -30,7 +30,7 @@
 //! ## `long double` in a text format
 //!
 //! [`LongDouble`] is an opaque 16-byte payload with no arithmetic
-//! (DESIGN.md row 49), and a text format needs a *representation*. This module
+//! ([DESIGN](gt_core::design) row 49), and a text format needs a *representation*. This module
 //! writes it as a C99 hexadecimal float -- `0x8p-3` for `1.0` -- because that
 //! is exact, and because graph-tool's own reader takes long doubles through
 //! `sscanf("%La")` (`str_repr.hh:81-84`), which accepts precisely that form.

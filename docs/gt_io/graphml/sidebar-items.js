@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EDGE_ID_KEY","VERTEX_ID_KEY"],"fn":["read","write"]};

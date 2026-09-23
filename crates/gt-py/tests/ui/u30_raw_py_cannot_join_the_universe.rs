@@ -1,7 +1,7 @@
 //! The universe cannot be re-opened, so mechanism 3 cannot be side-stepped by
 //! a sibling newtype.
 //!
-//! DESIGN.md §7 records that one earlier design had exactly this hole: a
+//! `gt_core::design` §7 records that one earlier design had exactly this hole: a
 //! `struct RawPy(Py<PyAny>)` in the Python crate with
 //! `impl PropValue for RawPy { type Mode = Par; }` compiled, and ran
 //! `Py_INCREF` inside rayon. Here `PropValue`'s supertrait is a `Sealed` that

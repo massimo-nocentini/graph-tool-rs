@@ -22,7 +22,7 @@ default = []
 audit-full = []
 
 # ---------------------------------------------------------------------------
-# Test harness (DESIGN.md section 16). The SBM half of the mandated
+# Test harness (gt_core::design section 16). The SBM half of the mandated
 # model-based proptest lives here: random moves priced by the delta, checked
 # against a from-scratch entropy with a *real* lgamma.
 # ---------------------------------------------------------------------------

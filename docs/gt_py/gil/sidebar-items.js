@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["copy_prop","detach","is_serial"],"struct":["Par","Seq"],"trait":["Allows","CopyStrategy","CopyValue","Meet","Mode","ModeOf","TokenFree"],"type":["ModeFor"]};

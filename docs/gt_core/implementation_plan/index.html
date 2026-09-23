@@ -1,0 +1,628 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Implementation plan"><title>gt_core::implementation_plan - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module implementation_plan</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_core/index.html">gt_core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module implementation_<wbr>plan</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#implementation-plan" title="Implementation plan">Implementation plan</a><ul><li><a href="#rules" title="Rules">Rules</a></li><li><a href="#dependency-order" title="Dependency order">Dependency order</a></li><li><a href="#u0--test-harness" title="U0 — Test harness">U0 — Test harness</a></li><li><a href="#u1--identifiers-directedness-bounds-errors-trait-layer" title="U1 — Identifiers, directedness, bounds, errors, trait layer">U1 — Identifiers, directedness, bounds, errors, trait layer</a></li><li><a href="#u2--adjacency-block-and-the-edge-id-allocator" title="U2 — Adjacency block and the edge-id allocator">U2 — Adjacency block and the edge-id allocator</a></li><li><a href="#u3--the-edge-slot-table-and-the-st-lookup" title="U3 — The edge slot table and the `(s,t)` lookup">U3 — The edge slot table and the <code>(s,t)</code> lookup</a></li><li><a href="#u4--iterators" title="U4 — Iterators">U4 — Iterators</a></li><li><a href="#u5--adjlist-the-two-splice-primitives" title="U5 — `AdjList`: the two splice primitives">U5 — <code>AdjList</code>: the two splice primitives</a></li><li><a href="#u6--deterministic-parallel-construction" title="U6 — Deterministic parallel construction">U6 — Deterministic parallel construction</a></li><li><a href="#u7--the-view-algebra" title="U7 — The view algebra">U7 — The view algebra</a></li><li><a href="#u8--the-value-universe-and-the-subset-macro" title="U8 — The value universe and the subset macro">U8 — The value universe and the subset macro</a></li><li><a href="#u9--property-maps" title="U9 — Property maps">U9 — Property maps</a></li><li><a href="#u10--work-partitioning-and-seeding" title="U10 — Work partitioning and seeding">U10 — Work partitioning and seeding</a></li><li><a href="#u11--reductions" title="U11 — Reductions">U11 — Reductions</a></li><li><a href="#u12--row-locks" title="U12 — Row locks">U12 — Row locks</a></li><li><a href="#u13--traversal" title="U13 — Traversal">U13 — Traversal</a></li><li><a href="#u14--components" title="U14 — Components">U14 — Components</a></li><li><a href="#u15--degree-kernels" title="U15 — Degree kernels">U15 — Degree kernels</a></li><li><a href="#u16--centrality" title="U16 — Centrality">U16 — Centrality</a></li><li><a href="#u17--topology" title="U17 — Topology">U17 — Topology</a></li><li><a href="#u18--inference-identifiers" title="U18 — Inference identifiers">U18 — Inference identifiers</a></li><li><a href="#u19--the-delta-buffer" title="U19 — The delta buffer">U19 — The delta buffer</a></li><li><a href="#u20--stack-and-lifecycle" title="U20 — Stack and lifecycle">U20 — Stack and lifecycle</a></li><li><a href="#u21--spec-traits-and-the-metropolis-loop" title="U21 — Spec traits and the Metropolis loop">U21 — Spec traits and the Metropolis loop</a></li><li><a href="#u22--the-special-function-cache" title="U22 — The special-function cache">U22 — The special-function cache</a></li><li><a href="#u23--the-entropy-functional" title="U23 — The entropy functional">U23 — The entropy functional</a></li><li><a href="#u24--block-state" title="U24 — Block state">U24 — Block state</a></li><li><a href="#u25--recording-and-propagation" title="U25 — Recording and propagation">U25 — Recording and propagation</a></li><li><a href="#u26--the-always-on-audit" title="U26 — The always-on audit">U26 — The always-on audit</a></li><li><a href="#u27--the-gt-binary-format" title="U27 — The `.gt` binary format">U27 — The <code>.gt</code> binary format</a></li><li><a href="#u28--graphml-and-dot" title="U28 — GraphML and DOT">U28 — GraphML and DOT</a></li><li><a href="#u29--delimited-edge-lists" title="U29 — Delimited edge lists">U29 — Delimited edge lists</a></li><li><a href="#u30--the-gil-lattice" title="U30 — The GIL lattice">U30 — The GIL lattice</a></li><li><a href="#u31--view-dispatch" title="U31 — View dispatch">U31 — View dispatch</a></li><li><a href="#u32--the-extension-module" title="U32 — The extension module">U32 — The extension module</a></li><li><a href="#u33--conversions-and-type-erasure" title="U33 — Conversions and type erasure">U33 — Conversions and type erasure</a></li><li><a href="#u-final--remove-the-skeleton-allowances" title="U-FINAL — Remove the skeleton allowances">U-FINAL — Remove the skeleton allowances</a></li><li><a href="#cross-cutting-owned-by-no-single-unit" title="Cross-cutting, owned by no single unit">Cross-cutting, owned by no single unit</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>core</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_core</a></div><h1>Module <span>implementation_<wbr>plan</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_core/implementation_plan.rs.html#1-764">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="implementation-plan"><a class="doc-anchor" href="#implementation-plan">§</a>Implementation plan</h2>
+<p>The skeleton in <code>crates/</code> compiles and its module tree is <strong>complete</strong>. No unit
+below needs to add a module, a <code>use</code> in a crate root, or a re-export: every
+public item the design calls for is already declared. Implementers fill
+<code>todo!()</code> bodies.</p>
+<p>Each <code>todo!()</code> in the tree is tagged with its unit number, so
+<code>grep -rn 'todo!("U5' crates</code> is the exact worklist for unit 5.</p>
+<h3 id="rules"><a class="doc-anchor" href="#rules">§</a>Rules</h3>
+<ol>
+<li><strong>File ownership is disjoint and exhaustive.</strong> A unit edits only the files
+listed under <em>Owns</em>. If a unit believes it needs to touch a file it does not
+own, that is a design error: stop and raise it against <a href="../design/index.html" title="mod gt_core::design">DESIGN</a>
+rather than editing across the boundary.</li>
+<li><strong>Crate roots are frozen.</strong> The five <code>crates/*/src/lib.rs</code> files are owned by
+<strong>U-FINAL</strong> and by nothing else. The module tree is already declared.</li>
+<li><strong>Tests go in the unit’s own file</strong>, named after the unit, e.g.
+<code>crates/gt-core/tests/u05_adjlist.rs</code>. Never in a shared test file.</li>
+<li><strong><code>cargo build --workspace</code> and <code>cargo clippy --workspace --all-targets --all-features</code> must pass after every unit</strong>, with zero warnings. They pass
+now; keep them passing.</li>
+<li><strong>A unit is not done because it compiles.</strong> §16 of <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> exists because
+every source design said “verified by compiling it” and shipped a defect its
+own claims denied. Each unit’s acceptance test below is the minimum, not the
+target.</li>
+<li><code>todo!()</code> bodies may be left in a file a unit owns <em>only</em> if the unit’s
+description says so (a few units deliberately land in two passes).</li>
+</ol>
+<h3 id="dependency-order"><a class="doc-anchor" href="#dependency-order">§</a>Dependency order</h3><div class="example-wrap"><pre class="language-text"><code>U0 ──┬─&gt; U1 ─┬─&gt; U2 ─&gt; U3 ─&gt; U4 ─&gt; U5 ─┬─&gt; U6
+     │       │                          ├─&gt; U7
+     │       ├─&gt; U8 ─&gt; U9 ─&gt; U33        │
+     │       └─&gt; U10 ─&gt; U11             │
+     │             └──&gt; U12             │
+     │                                  ├─&gt; U13..U17   (gt-algo)
+     │                                  ├─&gt; U18 ─&gt; U19 ─&gt; U20 ─&gt; U21
+     │                                  │              └─&gt; U22 ─&gt; U23 ─&gt; U24 ─&gt; U25 ─&gt; U26
+     │                                  ├─&gt; U27 ─&gt; U28, U29
+     │                                  └─&gt; U30 ─&gt; U31 ─&gt; U32
+     └────────────────────────────────────────────────────────&gt; U-FINAL</code></pre></div>
+<p>U2–U5 are a chain (storage is one object). Everything after U5 parallelises
+widely: U6/U7, U13–U17, U18–U26, U27–U29 and U30–U32 are four independent
+streams.</p>
+<hr />
+<h3 id="u0--test-harness"><a class="doc-anchor" href="#u0--test-harness">§</a>U0 — Test harness</h3>
+<p><strong>Owns:</strong> <code>Cargo.toml</code> (workspace), <code>crates/gt-core/Cargo.toml</code>,
+<code>crates/gt-algo/Cargo.toml</code>, <code>crates/gt-inference/Cargo.toml</code>,
+<code>crates/gt-io/Cargo.toml</code>, <code>crates/gt-py/Cargo.toml</code>.</p>
+<p><strong>Fills:</strong> nothing in <code>src/</code>. Adds <code>[dev-dependencies]</code> to each crate:
+<code>proptest</code>, <code>criterion</code>, <code>trybuild</code>; registers <code>[[bench]]</code> targets with
+<code>harness = false</code>.</p>
+<p><strong>Acceptance:</strong> <code>cargo build --workspace --all-targets</code> and
+<code>cargo clippy --workspace --all-targets --all-features</code> pass with zero
+warnings. <code>cargo bench --no-run</code> succeeds.</p>
+<hr />
+<h3 id="u1--identifiers-directedness-bounds-errors-trait-layer"><a class="doc-anchor" href="#u1--identifiers-directedness-bounds-errors-trait-layer">§</a>U1 — Identifiers, directedness, bounds, errors, trait layer</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/ids.rs</code>, <code>crates/gt-core/src/dir.rs</code>,
+<code>crates/gt-core/src/bound.rs</code>, <code>crates/gt-core/src/error.rs</code>,
+<code>crates/gt-core/src/graph.rs</code>. <strong>Tests:</strong> <code>crates/gt-core/tests/u01_foundation.rs</code>.</p>
+<p><strong>Signatures to fill:</strong> <code>GraphId::fresh</code> is already implemented; nothing else
+in these files has a body to write. The unit’s work is the <em>tests</em>, because
+these files encode the guarantees everything downstream assumes.</p>
+<p><strong>Acceptance (all must be assertions, not inspection):</strong></p>
+<ul>
+<li>
+<p><code>size_of::&lt;VertexId&gt;() == size_of::&lt;Raw&gt;()</code>, <code>size_of::&lt;Bound&lt;VertexTag&gt;&gt;()</code>
+stable, <code>Field&lt;Undirected&gt;</code> has exactly two inhabitants and
+<code>Field::&lt;Directed&gt;::R_IN.index() &lt; Directed::N_FIELDS</code>.</p>
+</li>
+<li>
+<p><code>GraphId::fresh()</code> returns distinct values across 10 000 calls and from two
+threads.</p>
+</li>
+<li>
+<p><strong>trybuild compile-fail fixtures</strong>, each asserting the exact diagnostic:</p>
+<ul>
+<li><code>Bound::new</code> from a downstream crate → <code>E0624</code>.</li>
+<li><code>Rev&lt;Und&lt;&amp;AdjList&gt;&gt;</code> → <code>E0271</code>.</li>
+<li><code>Und&lt;&amp;AdjList&gt;::in_edges</code> → <code>E0599</code>.</li>
+<li><code>&amp;dyn GraphRef</code> → compile error (the trait is intentionally not a trait
+object; <code>DynGraph</code> is).</li>
+</ul>
+<p>These four are quoted in <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §14 and must not be allowed to regress.</p>
+</li>
+</ul>
+<hr />
+<h3 id="u2--adjacency-block-and-the-edge-id-allocator"><a class="doc-anchor" href="#u2--adjacency-block-and-the-edge-id-allocator">§</a>U2 — Adjacency block and the edge-id allocator</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/adj/mod.rs</code>, <code>crates/gt-core/src/adj/entry.rs</code>,
+<code>crates/gt-core/src/adj/block.rs</code>, <code>crates/gt-core/src/adj/alloc.rs</code>. <strong>Tests:</strong> <code>crates/gt-core/tests/u02_block.rs</code>.</p>
+<p><strong>Fills:</strong> <code>Block::{get, insert_out, insert_in, remove_at, shrink}</code>,
+<code>EdgeIds::{alloc, release, compact}</code>.</p>
+<p><code>insert_out</code> <strong>must</strong> be the O(1) push-swap of <code>graph_adjacency.hh:1192-1215</code>
+(push <code>entries[out_len]</code> to the back, overwrite the slot). An <code>insert</code> at the
+boundary is O(in-degree) and was measured quadratic; see <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §3.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>size_of::&lt;Block&gt;() == 32</code> and <code>size_of::&lt;AdjEntry&gt;() == 8</code>, asserted.</li>
+<li>Property test: random <code>insert_out</code>/<code>insert_in</code>/<code>remove_at</code> sequences against a
+naive <code>(Vec&lt;AdjEntry&gt;, usize)</code> model; after every op the out-half and in-half
+contents match the model as multisets, and every returned <code>Moved</code> names an
+entry that really is at <code>to</code>.</li>
+<li><code>EdgeIds</code>: <code>live() == next() - free.len()</code> after every op; <code>alloc</code> after
+<code>release</code> reuses the released id; <code>compact()</code> is a permutation.</li>
+<li><strong>Benchmark asserting non-quadratic <code>insert_out</code></strong>: 10k/20k/40k/80k
+out-insertions onto a vertex with that many pre-existing in-edges must scale
+within 2.5× per doubling, not 4×.</li>
+</ul>
+<hr />
+<h3 id="u3--the-edge-slot-table-and-the-st-lookup"><a class="doc-anchor" href="#u3--the-edge-slot-table-and-the-st-lookup">§</a>U3 — The edge slot table and the <code>(s,t)</code> lookup</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/adj/index.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u03_index.rs</code>.</p>
+<p><strong>Fills:</strong> <code>EdgeSlots::{endpoints, locate, on_insert, on_move, on_remove, rebuild}</code>; <code>EHash::{on_link, on_unlink, find, rebuild}</code>.</p>
+<p><code>locate</code> performs the identity check <strong>itself</strong>, against the half named by
+<code>end</code>, bounds-checked. A caller-side guard passes whenever the two halves share
+a position; see <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> D12.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>size_of::&lt;EdgeSlot&gt;() == 4 * size_of::&lt;Raw&gt;()</code>.</li>
+<li><code>locate(blocks, id, Out)</code> and <code>locate(blocks, id, In)</code> disagree about the
+block whenever <code>src != tgt</code>, and agree when <code>src == tgt</code>.</li>
+<li><code>locate</code> returns <code>None</code>, never panics, for a released id, an out-of-range id,
+and a slot whose block entry has been overwritten.</li>
+<li><code>EHash</code> after a random link/unlink sequence equals a brute-force
+<code>HashMap&lt;(V,V), Vec&lt;E&gt;&gt;</code>; <code>rebuild</code> reproduces the incremental state exactly.</li>
+</ul>
+<hr />
+<h3 id="u4--iterators"><a class="doc-anchor" href="#u4--iterators">§</a>U4 — Iterators</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/adj/iter.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u04_iter.rs</code>.</p>
+<p><strong>Fills:</strong> <code>Edges::next</code> (the only <code>todo!()</code>).</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>edges()</code> yields each edge <strong>exactly once</strong>, in <code>EdgeId</code> order after a
+compaction, and skips empty blocks without an O(V) stall per edge.</li>
+<li><code>IncidentIter::fold</code> and <code>next</code> agree; <code>size_hint</code> is exact.</li>
+<li>Codegen assertion: the disassembly of
+<code>fn s(g: &amp;AdjList, v: VertexId) -&gt; u64 { g.out_edges(v).map(|i| i.other.raw() as u64).sum() }</code>
+in <code>--release</code> contains <strong>no</strong> <code>panic_bounds_check</code> and no allocator call.</li>
+</ul>
+<hr />
+<h3 id="u5--adjlist-the-two-splice-primitives"><a class="doc-anchor" href="#u5--adjlist-the-two-splice-primitives">§</a>U5 — <code>AdjList</code>: the two splice primitives</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/adj/list.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u05_adjlist.rs</code>.</p>
+<p><strong>Fills:</strong> everything except <code>new</code>/<code>with_lookup</code>, which are done. In
+particular <code>splice_in</code>, <code>splice_out</code>, <code>add_edge</code>, <code>remove_edge</code>,
+<code>clear_vertex_where</code>, <code>swap_remove_vertex</code>, <code>find_edge</code>, <code>validate</code>.</p>
+<p><code>splice_out</code> must re-locate the in-half <strong>after</strong> splicing the out-half; the
+borrow checker enforces the ordering, but the code must not work around it.
+<code>clear_vertex_where</code> uses <code>self.scratch</code>, not a fresh <code>Vec</code>.
+<code>swap_remove_vertex</code> relabels by unlink-then-relink so both index hooks fire
+for both directions.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><strong>Model-based proptest, the centrepiece of this unit.</strong> 2 000+ cases ×
+{<code>NoLookup</code>, <code>EHash</code>}, ≤ 6 vertices, sequences of up to 16
+<code>add_edge</code>/<code>remove_edge</code>/<code>clear_vertex</code>/<code>clear_vertex_where</code>/<code>swap_remove_vertex</code>
+including self-loops and parallel edges. After <strong>every</strong> operation:
+<code>validate()</code> is <code>Ok</code>; <code>num_edges()</code> matches a <code>BTreeMap&lt;EdgeId,(V,V)&gt;</code>
+reference; the full sorted out-half <strong>and in-half</strong> match the reference.
+(Checking only the out-half is what let one source design ship a <code>validate</code>
+that never inspected the in-half at all.)</li>
+<li><code>clear_vertex</code> on a vertex with a self-loop plus one other out-edge, under a
+predicate matching only the self-loop, decrements <code>num_edges()</code> by exactly 1.
+This is defect #1.</li>
+<li><code>remove_edge</code> of an id obtained from <code>find_edge(t, s).reversed()</code> behaves
+identically to <code>remove_edge</code> of the forward id (there is no orientation to
+get wrong; assert it).</li>
+<li>Allocation assertion: 10 000 <code>clear_vertex</code> calls on a 20k/160k graph perform
+<strong>zero</strong> allocations after warm-up.</li>
+</ul>
+<hr />
+<h3 id="u6--deterministic-parallel-construction"><a class="doc-anchor" href="#u6--deterministic-parallel-construction">§</a>U6 — Deterministic parallel construction</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/adj/builder.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u06_builder.rs</code>.</p>
+<p><strong>Fills:</strong> <code>ParBuilder::{new, push, fill, build}</code>.</p>
+<p><strong>Acceptance:</strong> the same input built with <code>RAYON_NUM_THREADS</code> = 1, 4 and 16
+produces <strong>byte-identical</strong> edge-id assignments and an identical <code>validate()</code>ing
+graph. A throughput benchmark against serial <code>add_edge</code> on 10⁷ edges.</p>
+<hr />
+<h3 id="u7--the-view-algebra"><a class="doc-anchor" href="#u7--the-view-algebra">§</a>U7 — The view algebra</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/view/mod.rs</code>,
+<code>crates/gt-core/src/view/undirected.rs</code>,
+<code>crates/gt-core/src/view/reversed.rs</code>,
+<code>crates/gt-core/src/view/filtered.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u07_views.rs</code>.</p>
+<p><strong>Fills:</strong> <code>MaskFilter::{keep_vertex, keep_edge}</code>; <code>Filtered::{new, masked, out_degree, degree, in_degree}</code>; <code>Filtered</code>’s <code>Endpoints</code> impl; the <code>Iterator</code>
+impls for <code>FilterIncident</code>, <code>FilterEdges</code>, <code>FilterVertices</code>.</p>
+<p><code>Filtered::new</code> and <code>FilterEdges</code> must both go through <code>keeps_edge</code>. Two
+predicates is how <code>num_edges()</code> comes to disagree with <code>edges().count()</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>On the path <code>0→1→2</code>: <code>g.undirect().out_edges(1)</code> yields <code>other ∈ {0, 2}</code> —
+<strong>never 1</strong>. This is defect #14 and it is the single most important assertion
+in this unit.</li>
+<li><code>g.reverse().out_edges(v)</code> equals <code>g.in_edges(v)</code> as a multiset, and is
+<strong>not</strong> their union.</li>
+<li>For every one of the six views: <code>num_vertices() == vertices().count()</code> and
+<code>num_edges() == edges().count()</code>, on a graph with a filter that removes
+vertices, edges, and both.</li>
+<li><code>vertex_bound()</code> is unchanged by filtering; <code>num_vertices()</code> is not.</li>
+<li><code>Filtered::masked</code> with a mask shorter than the bound returns
+<code>Err(ShortMask)</code>, and a mask validated against graph A cannot be used with
+graph B (borrowck or <code>Err</code>, assert which).</li>
+<li><code>size_of</code> assertions for all six views (<a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §11).</li>
+<li>trybuild: <code>g.undirect().reverse()</code> → <code>E0599</code>.</li>
+</ul>
+<hr />
+<h3 id="u8--the-value-universe-and-the-subset-macro"><a class="doc-anchor" href="#u8--the-value-universe-and-the-subset-macro">§</a>U8 — The value universe and the subset macro</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/prop/value.rs</code>,
+<code>crates/gt-core/src/prop/dispatch.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u08_value.rs</code>.</p>
+<p><strong>Fills:</strong> <code>ValueKind::from_name</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>ValueKind::ALL</code> round-trips through <code>name()</code>/<code>from_name()</code>, and every name
+is <strong>byte-identical</strong> to <code>graph_properties.hh:71-75</code> — including <code>"bool"</code> for
+<code>uint8_t</code>, which the Python <code>PropertyMap.value_type()</code> surface depends on.</li>
+<li><code>is_scalar</code>/<code>is_integer</code>/<code>is_floating</code>/<code>is_vector</code>/<code>elem</code> agree with the C++
+<code>hana::filter</code> sets (<code>:78-104</code>), with the one documented divergence
+(<code>long double</code> is not <code>Scalar</code>) asserted explicitly so it cannot drift
+silently.</li>
+<li>trybuild fixtures: a transposed <code>value_subset!</code> row → <code>E0080</code> with the
+generated message; a member violating the kernel bound → <code>E0277</code>. Both are
+quoted in <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §6.</li>
+<li><code>size_of::&lt;LongDouble&gt;() == 16</code>; a <code>LongDouble</code> round-trips through a
+<code>DenseProp</code> unchanged.</li>
+</ul>
+<hr />
+<h3 id="u9--property-maps"><a class="doc-anchor" href="#u9--property-maps">§</a>U9 — Property maps</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/prop/mod.rs</code>, <code>crates/gt-core/src/prop/map.rs</code>,
+<code>crates/gt-core/src/prop/dense.rs</code>, <code>crates/gt-core/src/prop/index_map.rs</code>. <strong>Tests:</strong> <code>crates/gt-core/tests/u09_props.rs</code>.</p>
+<p><strong>Fills:</strong> <code>DenseProp::{sized_for, sized_for_with, view, soft_reserve}</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>sized_for</code> on a map belonging to a different graph returns
+<code>Err(WrongGraph)</code>. This is defect #8 and #7.</li>
+<li><code>sized_for</code> grows to exactly <code>bound.len()</code>, is idempotent, and never shrinks.</li>
+<li><code>sized_for_with</code> fills new slots from the closure and leaves existing ones.</li>
+<li><code>view</code> on an under-sized map returns <code>Err(Undersized)</code>, never a short slice.</li>
+<li><code>size_of::&lt;Unity&lt;f64, VertexTag&gt;&gt;() == 0</code>, asserted.</li>
+<li><code>IndexProp::get_ref(k) == k.index()</code>, and <code>IndexProp</code> satisfies
+<code>ReadProp</code> but <strong>not</strong> <code>WriteProp</code> (trybuild → <code>E0599</code>).</li>
+<li>trybuild: <code>Unity::put</code> → <code>E0599</code> (defect #43).</li>
+<li>Codegen assertion: a scan through <code>PropSlice::as_slice()</code> has no
+<code>panic_bounds_check</code>; a per-key scatter does (documented cost, <a href="../design/index.html" title="mod gt_core::design">DESIGN</a>
+§12).</li>
+</ul>
+<hr />
+<h3 id="u10--work-partitioning-and-seeding"><a class="doc-anchor" href="#u10--work-partitioning-and-seeding">§</a>U10 — Work partitioning and seeding</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/par/mod.rs</code>, <code>crates/gt-core/src/par/plan.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u10_plan.rs</code>.</p>
+<p><strong>Fills:</strong> <code>Plan::{new, range}</code>, <code>Seed::split</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>Exhaustive exact-cover check: for every <code>n</code> in <code>0..300</code> and <code>grain</code> in
+<code>1..40</code>, <code>(0..plan.chunks()).flat_map(|k| plan.range(k))</code> equals <code>0..n</code>
+exactly — no gaps, no overlaps, no empty trailing chunk.</li>
+<li><code>plan.chunks()</code> is a pure function of <code>(n, grain)</code> and observably independent
+of <code>RAYON_NUM_THREADS</code>.</li>
+<li><code>Seed::split(k)</code> streams are pairwise distinct for <code>k in 0..1024</code> and
+reproducible across runs; <code>(S, k)</code> and <code>(S ^ k, 0)</code> do <strong>not</strong> alias.</li>
+</ul>
+<hr />
+<h3 id="u11--reductions"><a class="doc-anchor" href="#u11--reductions">§</a>U11 — Reductions</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/par/reduce.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u11_reduce.rs</code>.</p>
+<p><strong>Fills:</strong> <code>det_reduce</code>, <code>try_det_reduce</code>, <code>chunked_sum</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>A <code>log_sum_exp</code> reduction over 10 000 random values is <strong>bit-identical</strong>
+(<code>a.to_bits() == b.to_bits()</code>) at 1, 4 and 16 rayon threads. This is defect
+#27.</li>
+<li><code>try_det_reduce</code> with several failing chunks returns the error from the
+<strong>lowest</strong> chunk index, deterministically, at every thread count. This is
+defect #26.</li>
+<li><code>chunked_sum::&lt;4&gt;</code> matches a sequential Kahan sum to within the documented
+tolerance, and a disassembly assertion records whether <code>addpd</code> is present —
+the test must <em>record</em> the answer, not assume it (<a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §12).</li>
+</ul>
+<hr />
+<h3 id="u12--row-locks"><a class="doc-anchor" href="#u12--row-locks">§</a>U12 — Row locks</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/par/locks.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u12_locks.rs</code>.</p>
+<p><strong>Fills:</strong> <code>pair_mut</code>, <code>RowLocks::{new, with_pair, with_row}</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><strong><code>pair_mut(xs, 3, 1)</code> returns <code>Two(&amp;mut xs[3], &amp;mut xs[1])</code> — in that
+order.</strong> Write the test as “the first reference is <code>r</code>’s row” and assert the
+<em>value</em>, not the index. A sorted return silently transposes; see <a href="../design/index.html" title="mod gt_core::design">DESIGN</a>
+D9.</li>
+<li><code>pair_mut(xs, 3, 3)</code> returns <code>Same</code>, not <code>None</code>.</li>
+<li><code>pair_mut</code> with an out-of-range index returns <code>None</code>.</li>
+<li>A 16-thread stress test taking 10⁵ random pairs in random order completes
+without deadlock and leaves every counter at its expected total.</li>
+</ul>
+<hr />
+<h3 id="u13--traversal"><a class="doc-anchor" href="#u13--traversal">§</a>U13 — Traversal</h3>
+<p><strong>Owns:</strong> <code>crates/gt-algo/src/traversal.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-algo/tests/u13_traversal.rs</code>.</p>
+<p><strong>Fills:</strong> <code>bfs</code>, <code>bfs_multi</code>, <code>dfs</code>, <code>shortest_distances</code>, <code>dijkstra</code>.</p>
+<p><strong>Acceptance:</strong> BFS distances on the six views of a fixed graph match a
+hand-computed table; <code>dfs</code> visits every reachable vertex exactly once;
+<code>Control::{Prune, Stop}</code> are honoured; <code>dijkstra</code> with a <code>Unity</code> weight equals
+<code>shortest_distances</code> <strong>and</strong> its disassembly shows the weight loop folded away.</p>
+<hr />
+<h3 id="u14--components"><a class="doc-anchor" href="#u14--components">§</a>U14 — Components</h3>
+<p><strong>Owns:</strong> <code>crates/gt-algo/src/components.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-algo/tests/u14_components.rs</code>.</p>
+<p><strong>Fills:</strong> <code>components</code>, <code>strong_components</code>, <code>largest_component_mask</code>.</p>
+<p><strong>Acceptance:</strong> <code>components(g.undirect())</code> equals a union-find reference;
+<code>strong_components</code> equals a reference Tarjan on 500 random digraphs;
+<code>largest_component_mask</code> fed straight into <code>Filtered::masked</code> yields a view
+whose <code>num_vertices()</code> equals the component size.</p>
+<hr />
+<h3 id="u15--degree-kernels"><a class="doc-anchor" href="#u15--degree-kernels">§</a>U15 — Degree kernels</h3>
+<p><strong>Owns:</strong> <code>crates/gt-algo/src/degree.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-algo/tests/u15_degree.rs</code>.</p>
+<p><strong>Fills:</strong> <code>weighted_out_degree</code>, <code>weighted_in_degree</code>, <code>weighted_degree</code>,
+<code>out_degrees</code>, <code>degree_histogram</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>weighted_out_degree</code> with <code>Unity</code> equals <code>out_degree</code> as an <code>f64</code>, and the
+disassembly of that monomorphisation contains <strong>no loop</strong> (defect #44’s fast
+path, which does not exist in the C++).</li>
+<li>With <code>Constant { c }</code> it equals <code>c * out_degree</code>.</li>
+<li>With an <code>i64</code> <code>DenseProp</code> it is exact for values beyond 2⁵³ where <code>f64</code>
+allows — i.e. assert the <code>ToF64</code> widening is used, not <code>Into&lt;f64&gt;</code> (which
+would not compile; keep a trybuild fixture proving <code>i64</code> is admissible).</li>
+<li>No allocation per vertex: assert with an instrumented allocator.</li>
+</ul>
+<hr />
+<h3 id="u16--centrality"><a class="doc-anchor" href="#u16--centrality">§</a>U16 — Centrality</h3>
+<p><strong>Owns:</strong> <code>crates/gt-algo/src/centrality.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-algo/tests/u16_centrality.rs</code>.</p>
+<p><strong>Fills:</strong> <code>pagerank</code>, <code>eigenvector</code>, <code>betweenness</code>.</p>
+<p><strong>Acceptance:</strong> PageRank on a fixed 1 000-vertex graph is <strong>bit-identical</strong> at
+1 and 16 threads (this is what <code>det_reduce</code> is for); values match a dense
+power-iteration reference to 1e-12; <code>betweenness</code> matches a reference Brandes
+on 100 small graphs.</p>
+<hr />
+<h3 id="u17--topology"><a class="doc-anchor" href="#u17--topology">§</a>U17 — Topology</h3>
+<p><strong>Owns:</strong> <code>crates/gt-algo/src/topology.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-algo/tests/u17_topology.rs</code>.</p>
+<p><strong>Fills:</strong> <code>is_dag</code>, <code>topological_sort</code>, <code>is_bipartite</code>, <code>global_clustering</code>,
+<code>count_triangles</code>, <code>reciprocity</code>.</p>
+<p><strong>Acceptance:</strong> <code>topological_sort</code> returns <code>None</code> exactly when <code>is_dag</code> is
+false and otherwise a valid order; <code>count_triangles</code> counts each triangle
+<strong>once</strong> on both directed and undirected views (this is where degree-summation
+double-counts — assert against a brute-force O(V³) reference on 200 small
+graphs).</p>
+<hr />
+<h3 id="u18--inference-identifiers"><a class="doc-anchor" href="#u18--inference-identifiers">§</a>U18 — Inference identifiers</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/ids.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u18_ids.rs</code>.</p>
+<p><strong>Fills:</strong> <code>StateId::fresh</code>.</p>
+<p><strong>Acceptance:</strong> <code>size_of::&lt;Option&lt;Group&gt;&gt;() == 4</code>, asserted;
+<code>Group::new(i).index() == i</code> for the full range; <code>StateId::fresh</code> distinct
+across threads; the <code>Weight</code> impls round-trip <code>to_f64</code>/<code>from_i64</code> within their
+exact range.</p>
+<hr />
+<h3 id="u19--the-delta-buffer"><a class="doc-anchor" href="#u19--the-delta-buffer">§</a>U19 — The delta buffer</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/delta/mod.rs</code>,
+<code>crates/gt-inference/src/delta/entry.rs</code>,
+<code>crates/gt-inference/src/delta/buf.rs</code>. <strong>Tests:</strong> <code>crates/gt-inference/tests/u19_deltabuf.rs</code>.</p>
+<p><strong>Fills:</strong> <code>DeltaBuf::{begin, touch, touch_dyn, delta_of, me_of}</code>.</p>
+<p><code>begin</code> resets exactly the slots recorded in <code>self.slots</code> and must be correct
+<strong>regardless of the order</strong> relative to the move key — unlike <code>EntrySet::clear</code>
+(<code>entries.hh:169-176</code>), which re-derives addresses from <code>_rnr</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>Property test: random <code>touch</code> sequences; <code>delta_of(s, t)</code> equals a
+<code>HashMap&lt;(Group,Group), W&gt;</code> reference; <code>entries()</code> contains each touched pair
+exactly once.</li>
+<li><code>begin</code> with a <strong>different</strong> move key after a previous recording leaves no
+residue: every field slot is null and <code>delta_of</code> is zero for every pair.</li>
+<li><code>begin</code> is O(#entries): assert the number of field-slot writes, not the
+wall clock.</li>
+<li><code>touch_dyn</code> on a pair touching neither endpoint returns <code>Err(OutOfPlane)</code> and
+leaves the buffer unchanged. This is defect #4.</li>
+<li><code>size_of::&lt;DeltaBuf&lt;Undirected, i64&gt;&gt;() &lt; size_of::&lt;DeltaBuf&lt;Directed, i64&gt;&gt;()</code>
+— the undirected buffer holds two field vectors, not four empty ones.</li>
+</ul>
+<hr />
+<h3 id="u20--stack-and-lifecycle"><a class="doc-anchor" href="#u20--stack-and-lifecycle">§</a>U20 — Stack and lifecycle</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/delta/stack.rs</code>,
+<code>crates/gt-inference/src/delta/lifecycle.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u20_lifecycle.rs</code>.</p>
+<p><strong>Fills:</strong> <code>DeltaStack::with_levels</code>. (<code>below_above</code>, <code>Recording</code>,
+<code>Transition</code>, <code>Delta</code>, <code>Applied</code>, <code>LevelIter</code> are complete; this unit’s real
+work is the tests and the trybuild fixtures.)</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>below_above(l)</code> hands out level <code>l</code> shared and <code>l+1</code> mutably at once.</li>
+<li><code>into_levels()</code> yields exactly <code>n_levels()</code> <code>Applied</code> tokens, bottom-up, each
+carrying its own level index and the shared stamp.</li>
+<li>trybuild fixtures, each asserting the exact diagnostic:
+<ul>
+<li>applying the same <code>Applied</code> twice → <code>E0382</code> (defect #35);</li>
+<li><code>Transition::clone()</code> → <code>E0599</code>;</li>
+<li>holding a <code>Delta</code> across a <code>&amp;mut state</code> call → <strong>compiles</strong> (this is the
+whole point of the ownership inversion; assert the positive case too).</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="u21--spec-traits-and-the-metropolis-loop"><a class="doc-anchor" href="#u21--spec-traits-and-the-metropolis-loop">§</a>U21 — Spec traits and the Metropolis loop</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/spec.rs</code>,
+<code>crates/gt-inference/src/metropolis.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u21_metropolis.rs</code>.</p>
+<p><strong>Fills:</strong> <code>accept</code>, <code>mcmc_sweep</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>A toy <code>MetropolisState</code> at <code>beta = 0</code> accepts exactly when <code>log_hastings &gt; 0</code>;
+at <code>beta = ∞</code> accepts exactly when <code>d_entropy &lt; 0</code>.</li>
+<li>All three <code>Schedule</code> variants visit the right node multiset;
+<code>Schedule::Alternating</code> is reproducible across runs with a fixed seed.</li>
+<li><code>nattempts</code>/<code>nmoves</code> accumulate <code>Step::nsteps</code>, not 1 (defect #25).</li>
+<li>trybuild fixtures:
+<ul>
+<li>a <code>GroupProposal</code> impl defining <code>get_move_lprob</code> inside the impl block →
+<code>E0407</code>;</li>
+<li>the same in an inherent impl, leaving <code>log_reverse</code> unimplemented →
+<code>E0046</code>. Together these are defect #19 and they are the reason this trait
+is shaped as it is.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="u22--the-special-function-cache"><a class="doc-anchor" href="#u22--the-special-function-cache">§</a>U22 — The special-function cache</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/blockmodel/mod.rs</code>,
+<code>crates/gt-inference/src/blockmodel/cache.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u22_cache.rs</code>.</p>
+<p><strong>Fills:</strong> <code>Cache::{build, lgamma1p, safelog, lbinom, log_q}</code>.</p>
+<p><strong><code>lgamma1p</code> must be a real Lanczos (or equivalent) <code>lgamma</code>, not a stub.</strong> The
+single largest evidence failure in the design phase was a crate whose
+<code>ln_gamma</code> was <code>x.ln()</code>, which hid a pricing path that was wrong on 72% of
+moves. It must also match graph-tool’s <code>ignore_error</code> policy
+(<code>cache.hh:36-48</code>) on out-of-domain input rather than panicking.</p>
+<p><strong>Acceptance:</strong> <code>lgamma1p</code> agrees with a high-precision reference to 1e-13
+relative over <code>[0, 10⁶]</code>, both inside and outside the table; <code>safelog(0) == 0</code>;
+<code>lbinom</code> matches an exact big-integer computation for <code>n ≤ 60</code>; <code>Cache</code> is
+<code>Sync</code> and two threads reading it concurrently agree.</p>
+<hr />
+<h3 id="u23--the-entropy-functional"><a class="doc-anchor" href="#u23--the-entropy-functional">§</a>U23 — The entropy functional</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/blockmodel/entropy.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u23_entropy.rs</code>.</p>
+<p><strong>Fills:</strong> <code>eterm</code>, <code>vterm</code>, <code>eterm_dense</code>, <code>edges_dl</code>, <code>partition_dl</code>,
+<code>sparse_ds</code>, <code>dense_ds</code>.</p>
+<p><strong>Acceptance:</strong> each kernel matches the corresponding C++ expression
+(<code>entropy.hh:38, :73, :235, :293</code>; <code>partition.hh:106</code>) on 10⁴ random inputs to
+1e-12. <code>sparse_ds</code> takes <strong>no state argument</strong> — assert that by calling it with
+only a <code>Delta</code> and a <code>Cache</code> in scope.</p>
+<hr />
+<h3 id="u24--block-state"><a class="doc-anchor" href="#u24--block-state">§</a>U24 — Block state</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/blockmodel/state.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u24_state.rs</code>.</p>
+<p><strong>Fills:</strong> <code>Aggregates::{apply_entry, apply_entries}</code>, plus a concrete
+<code>BlockView</code> + <code>BlockCommit</code> + <code>BlockCommitShared</code> implementation for the
+tests to drive.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>commit</code> rejects an <code>Applied</code> whose <code>Stamp</code> names a different <code>StateId</code>
+<strong>even when the epochs match</strong> — build two fresh states, record against one,
+commit into the other, assert <code>Err</code>/panic. This is defect #36, and an epoch
+alone does not catch it.</li>
+<li><code>apply_entries</code> and repeated <code>apply_entry</code> produce identical aggregates.</li>
+<li><code>n_groups()</code> is derived from the occupancy set; there is no second stored
+copy to drift.</li>
+<li>8-thread <code>commit_shared</code> stress: 10⁵ moves over disjoint and overlapping
+block pairs; final aggregates equal a serial replay.</li>
+</ul>
+<hr />
+<h3 id="u25--recording-and-propagation"><a class="doc-anchor" href="#u25--recording-and-propagation">§</a>U25 — Recording and propagation</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/blockmodel/record.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u25_record.rs</code>.</p>
+<p><strong>Fills:</strong> <code>record</code>, <code>scan</code>, <code>propagate</code>.</p>
+<p><code>scan</code> must halve the doubly-traversed undirected self-loop weight
+(<code>entries.hh:276-292</code>). A <code>None</code> neighbour group must be reported or
+<code>debug_assert</code>ed, <strong>never silently skipped</strong> — a skip produces a delta quietly
+short by one edge’s weight, which is a worse failure mode than the C++’s
+out-of-range index.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>Differential test, 300 random undirected <strong>and</strong> 300 random directed
+multigraphs with self-loops and parallel edges: the recorded delta equals a
+brute-force recount of <code>e_rs</code> before and after the move. This is the test
+that would have caught the design-phase pricing bug.</li>
+<li><code>propagate</code> performs <strong>no</strong> heap allocation per call (instrumented
+allocator).</li>
+<li><code>propagate</code> on a well-formed hierarchy never returns <code>Err(OutOfPlane)</code>.</li>
+</ul>
+<hr />
+<h3 id="u26--the-always-on-audit"><a class="doc-anchor" href="#u26--the-always-on-audit">§</a>U26 — The always-on audit</h3>
+<p><strong>Owns:</strong> <code>crates/gt-inference/src/blockmodel/audit.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-inference/tests/u26_audit.rs</code>.</p>
+<p><strong>Fills:</strong> <code>audit_commit</code>, <code>audit_price</code>, <code>audit_absolute</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>audit_commit(st, &amp;receipt)</code> compiles and passes <strong>after</strong> a commit —
+assert the call site, since that is the whole reason <code>Receipt</code> exists.</li>
+<li>Fault injection: corrupt one <code>mrs</code> / one <code>mrp</code> / one <code>wr</code> by ±1 and assert
+the audit names the right group and field.</li>
+<li>Cost: <code>audit_commit</code> performs O(#entries) state reads, asserted by counting.</li>
+<li>Under <code>--features audit-full</code>, <code>audit_absolute</code> agrees with the accumulated
+delta sum over a 10 000-move sweep to 1e-9.</li>
+</ul>
+<hr />
+<h3 id="u27--the-gt-binary-format"><a class="doc-anchor" href="#u27--the-gt-binary-format">§</a>U27 — The <code>.gt</code> binary format</h3>
+<p><strong>Owns:</strong> <code>crates/gt-io/src/error.rs</code>, <code>crates/gt-io/src/gt.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-io/tests/u27_gt.rs</code>.</p>
+<p><strong>Fills:</strong> <code>gt::{read, write}</code>.</p>
+<p><strong>Acceptance:</strong> round-trip of a graph with all 15 property types (including
+<code>long double</code> and a Python-valued map, the latter skipped when the <code>python</code>
+feature is off) is byte-identical; a real graph-tool-written <code>.gt</code> fixture
+loads and re-saves byte-identically; a truncated file gives <code>BadMagic</code> or
+<code>Parse</code>, never a panic; a file declaring an out-of-range index gives
+<code>IndexOutOfRange</code>.</p>
+<hr />
+<h3 id="u28--graphml-and-dot"><a class="doc-anchor" href="#u28--graphml-and-dot">§</a>U28 — GraphML and DOT</h3>
+<p><strong>Owns:</strong> <code>crates/gt-io/src/graphml.rs</code>, <code>crates/gt-io/src/dot.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-io/tests/u28_text.rs</code>.</p>
+<p><strong>Acceptance:</strong> GraphML round-trip preserves typed properties and edge order;
+DOT round-trip preserves topology (property typing is best-effort and the test
+must assert <em>that</em>, not more); malformed input yields <code>Parse</code> with the correct
+line number.</p>
+<hr />
+<h3 id="u29--delimited-edge-lists"><a class="doc-anchor" href="#u29--delimited-edge-lists">§</a>U29 — Delimited edge lists</h3>
+<p><strong>Owns:</strong> <code>crates/gt-io/src/csv.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-io/tests/u29_csv.rs</code>.</p>
+<p><strong>Acceptance:</strong> symbolic endpoints intern deterministically (first-seen order);
+<code>read_edge_list</code> over <code>ParBuilder</code> produces identical edge ids at 1 and 16
+threads; <code>write_edge_list</code> emits in <code>EdgeId</code> order.</p>
+<hr />
+<h3 id="u30--the-gil-lattice"><a class="doc-anchor" href="#u30--the-gil-lattice">§</a>U30 — The GIL lattice</h3>
+<p><strong>Owns:</strong> <code>crates/gt-py/src/gil.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-py/tests/u30_gil.rs</code>.</p>
+<p><strong>Fills:</strong> both <code>CopyStrategy::copy</code> impls.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li><code>copy_prop::&lt;f64, f64&gt;</code> resolves to <code>Par</code> and its body calls
+<code>allow_threads</code>; <code>copy_prop::&lt;PyValue, PyValue&gt;</code> resolves to <code>Seq</code> and holds
+the token. Assert the resolution with a type-level witness, not by
+inspection.</li>
+<li>trybuild fixtures, each asserting the exact diagnostic:
+<ul>
+<li><code>Vec&lt;PyValue&gt;::par_iter_mut()</code> → <code>E0599</code> (defect #30, already verified);</li>
+<li>a hand-written <code>impl ModeOf for PyValue { type Mode = Par; }</code> →
+<code>E0277: PyValue: Sync is not satisfied</code>, i.e. the lattice cannot be
+mis-edited into unsoundness;</li>
+<li><code>struct RawPy(Py&lt;PyAny&gt;); impl PropValue for RawPy</code> → a seal error,
+proving the universe cannot be re-opened.</li>
+</ul>
+</li>
+<li><code>detach</code> rejects a closure capturing a <code>Python&lt;'_&gt;</code> (<code>E0277</code>).</li>
+</ul>
+<hr />
+<h3 id="u31--view-dispatch"><a class="doc-anchor" href="#u31--view-dispatch">§</a>U31 — View dispatch</h3>
+<p><strong>Owns:</strong> <code>crates/gt-py/src/dispatch.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-py/tests/u31_dispatch.rs</code>.</p>
+<p><strong>Fills:</strong> <code>AnyGraph::{dispatch, dispatch_bidi}</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>All six arms construct and run a kernel that exercises <code>out_edges</code>,
+<code>vertices</code>, <code>edges</code> and <code>find_edge</code> — i.e. the kernel’s full bound set,
+because a view implementing only incidence cannot back a generic algorithm.</li>
+<li><code>dispatch_bidi</code> has exactly three arms and a kernel calling <code>in_edges</code>
+compiles on it.</li>
+<li><code>&amp;dyn DynGraph</code> works; assert <code>for_each_out</code> visits the same multiset as
+<code>out_edges</code>.</li>
+<li>trybuild: adding a seventh <code>ViewKind</code> variant → <code>E0004</code> (defect #48’s
+<em>eliminated</em> half).</li>
+</ul>
+<hr />
+<h3 id="u32--the-extension-module"><a class="doc-anchor" href="#u32--the-extension-module">§</a>U32 — The extension module</h3>
+<p><strong>Owns:</strong> <code>crates/gt-py/src/value.rs</code>, <code>crates/gt-py/src/module.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-py/tests/u32_module.rs</code>.</p>
+<p><strong>Fills:</strong> <code>PyGraph</code>’s methods, <code>register</code>.</p>
+<p><strong>Every entry point must size <em>all</em> maps, including read-only ones</strong>, before
+entering <code>detach</code>. That preserves graph-tool’s auto-grow-on-read semantics
+(<code>fast_vector_property_map.hh:129</code>); see <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §5.</p>
+<p><strong>Acceptance:</strong> <code>every_value_kind_is_reachable_from_some_subset</code> (already
+written) passes; a Python-level smoke test under
+<code>--features extension-module</code> builds a graph, sets a property, reads it back
+from a never-written key and gets the default; an exception raised inside a
+kernel surfaces as a <code>PyErr</code> and does not abort under <code>panic = "abort"</code> —
+if it does, that is a finding against <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §10 and must be raised.</p>
+<hr />
+<h3 id="u33--conversions-and-type-erasure"><a class="doc-anchor" href="#u33--conversions-and-type-erasure">§</a>U33 — Conversions and type erasure</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/prop/convert.rs</code>,
+<code>crates/gt-core/src/prop/dynamic.rs</code>.
+<strong>Tests:</strong> <code>crates/gt-core/tests/u33_convert.rs</code>.</p>
+<p><strong>Fills:</strong> <code>ConvertFrom</code> for the real lattice (<code>value_convert.hh:73-200</code>),
+<code>ToAny</code>/<code>FromAny</code> for all 15 members, and a <code>DynProp</code> adaptor over <code>DenseProp</code>.</p>
+<p><strong>Acceptance:</strong></p>
+<ul>
+<li>The 15 diagonal cases are the identity and allocate nothing beyond the value
+itself.</li>
+<li>Every off-diagonal pair either converts correctly or returns
+<code>Err(NoConversion)</code> — never panics, never silently truncates without saying
+so. Compare against <code>value_convert.hh</code> pair by pair.</li>
+<li><code>to_any</code>/<code>from_any</code> round-trip every member.</li>
+<li><code>DynWrap::{get, put}</code> return <code>Err</code>, never <code>panic</code>, for an unreadable or
+unwritable map (defect: <code>graph_properties.hh:447, :457</code> throw).</li>
+<li>Instantiation count assertion: <code>nm</code> on a release build shows <strong>45</strong>
+conversion monomorphisations for the full lattice, not 225 (<a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §10).</li>
+</ul>
+<hr />
+<h3 id="u-final--remove-the-skeleton-allowances"><a class="doc-anchor" href="#u-final--remove-the-skeleton-allowances">§</a>U-FINAL — Remove the skeleton allowances</h3>
+<p><strong>Owns:</strong> <code>crates/gt-core/src/lib.rs</code>, <code>crates/gt-algo/src/lib.rs</code>,
+<code>crates/gt-inference/src/lib.rs</code>, <code>crates/gt-io/src/lib.rs</code>,
+<code>crates/gt-py/src/lib.rs</code>.</p>
+<p><strong>Fills:</strong> deletes <code>#![allow(dead_code, unused_variables)]</code> from all five
+roots, and the two pyo3-related allows from gt-py once the workspace moves to a
+pyo3 release built for edition 2024.</p>
+<p><strong>Acceptance:</strong> <code>cargo clippy --workspace --all-targets --all-features</code> passes
+with zero warnings <strong>without</strong> those allows. <code>grep -rn 'todo!' crates</code> returns
+nothing. <code>grep -rn 'unsafe' crates/gt-core crates/gt-algo crates/gt-inference crates/gt-io</code> returns only the <code>forbid</code> attributes.</p>
+<hr />
+<h3 id="cross-cutting-owned-by-no-single-unit"><a class="doc-anchor" href="#cross-cutting-owned-by-no-single-unit">§</a>Cross-cutting, owned by no single unit</h3>
+<p>These are tracked in <a href="../design/index.html" title="mod gt_core::design">DESIGN</a> §15 and must not be started as part of a unit
+above without a design amendment:</p>
+<ul>
+<li>the inference second dispatch layer (<code>GEN_DISPATCH</code>, name-indexed resolved
+types) — roughly 13 000 of the ~35 000 C++ leaves;</li>
+<li>heterogeneous coupled states (<code>coupled_state_t</code>);</li>
+<li>the numpy/FFI property-map boundary, which is where any future <code>unsafe</code> will
+accumulate;</li>
+<li>differential testing against a live graph-tool build. <strong>Nothing in the defect
+table is settled until the two implementations agree on real graphs.</strong></li>
+</ul>
+</div></details></section></div></main></body></html>

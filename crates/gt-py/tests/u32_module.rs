@@ -7,7 +7,7 @@
 //! a `python3 -c` smoke test is that the interpreter is embedded, which keeps
 //! the whole thing inside `cargo test`.
 //!
-//! What they are checking, in order of what DESIGN.md cares about:
+//! What they are checking, in order of what `gt_core::design` cares about:
 //!
 //! * **auto-grow on read** (§5). `fast_vector_property_map.hh:132-136` does
 //!   `soft_reserve(i + 1)` inside the checked `operator[]`, so `g.vp.x[v]` on
@@ -242,7 +242,7 @@ fn a_never_written_key_reads_back_as_the_default() {
             0
         );
 
-        // A *read* grows the store. This is the whole point of DESIGN.md §5's
+        // A *read* grows the store. This is the whole point of `gt_core::design` §5's
         // "the dispatcher calls `sized_for` on read-only maps too": without it
         // the read is `PropError::Undersized` and graph-tool returns 0.0.
         assert_eq!(vp.get_item(4).unwrap().extract::<f64>().unwrap(), 0.0);
@@ -390,7 +390,7 @@ fn every_member_is_constructible_and_names_itself() {
         }
 
         // The fifteenth member is a different class, because `PyValue` is
-        // `!Send` and `#[pyclass]` requires `Send` (DESIGN.md §7).
+        // `!Send` and `#[pyclass]` requires `Send` (`gt_core::design` §7).
         let obj = vprop(&g, "python::object");
         assert_eq!(
             obj.get_type().name().unwrap().to_string(),
@@ -467,7 +467,7 @@ fn each_member_round_trips_one_value() {
         );
 
         // `long double` is an opaque 16-byte payload with no arithmetic
-        // (DESIGN.md D7), so `bytes` is the only lossless Python spelling: a
+        // (`gt_core::design` D7), so `bytes` is the only lossless Python spelling: a
         // `float` would round an 80-bit extended value through a `double` and
         // write a different one back to the `.gt` file.
         let ld = vprop(&g, "long double");
@@ -672,7 +672,7 @@ fn an_object_map_defaults_to_none_and_round_trips() {
         // `Py<PyAny>` has no `Default` and the default `python::object` is
         // `Py_None`, which needs the interpreter -- which is why `Zeroed` is
         // not a supertrait of `PropValue` and the fill is a closure
-        // (DESIGN.md §13.1).
+        // (`gt_core::design` §13.1).
         assert!(op.get_item(0).unwrap().is_none());
 
         let d = PyDict::new_bound(py);

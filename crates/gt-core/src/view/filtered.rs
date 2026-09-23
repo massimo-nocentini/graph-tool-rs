@@ -1,6 +1,6 @@
 //! The filtered view.
 //!
-//! ## Type parameter, not const generic, not runtime predicate (DESIGN.md D3)
+//! ## Type parameter, not const generic, not runtime predicate ([DESIGN](crate::design) D3)
 //!
 //! * **Type parameter** (chosen). [`KeepAll`] is a ZST, so `Filtered<G, KeepAll>`
 //!   carries only the two memoised counters and `F::TRIVIAL` const-folds the
@@ -430,7 +430,7 @@ impl<I: Iterator<Item = Incident>, F: Filter> Iterator for FilterIncident<I, F> 
 
 /// Filtering never resurrects an exhausted iterator, so fusedness survives it.
 /// [`ExactSizeIterator`] deliberately does **not**: that is the `ExactIncidence`
-/// refinement (DESIGN.md section 4) which filtered views do not implement.
+/// refinement ([DESIGN](crate::design) section 4) which filtered views do not implement.
 impl<I: std::iter::FusedIterator<Item = Incident>, F: Filter> std::iter::FusedIterator
     for FilterIncident<I, F>
 {

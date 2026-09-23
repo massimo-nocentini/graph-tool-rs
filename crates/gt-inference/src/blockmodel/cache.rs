@@ -8,7 +8,7 @@
 //! `safelog_fast` (`:106-111`) and `lgamma_fast` (`:139-144`) are annotated
 //! `[[gnu::const]]`, which promises the optimiser that they read no memory --
 //! licensing hoisting across the very resize that races with them. That is
-//! defect #34 in DESIGN.md §17.
+//! defect #34 in [DESIGN](gt_core::design) §17.
 //!
 //! (The skeleton's original text cited `:56-58`, `:83-91` and `:73`, and the
 //! bench header cited `:55-57`, `:84-92` and `:72-73`. The constructs are the

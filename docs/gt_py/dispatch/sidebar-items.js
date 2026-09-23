@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ViewError","ViewKind"],"fn":["as_filtered","as_reversed","as_undirected"],"struct":["AnyGraph"],"trait":["BidiGraphKernel","DynGraph","GraphKernel"]};

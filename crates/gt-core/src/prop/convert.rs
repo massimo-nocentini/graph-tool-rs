@@ -1,6 +1,6 @@
 //! Conversion between members of the value universe.
 //!
-//! ## Why `From` cannot serve (DESIGN.md D7)
+//! ## Why `From` cannot serve ([DESIGN](crate::design) D7)
 //!
 //! `value_convert.hh:135` handles `is_vector_v<To> && is_vector_v<From>`, and
 //! `prop_map_as` narrows as well as widens. Both
@@ -41,7 +41,7 @@
 //! * **`long double`.** `std::is_scalar_v<long double>` is true, so the C++
 //!   converts it to and from every scalar, to `std::string`, and elementwise
 //!   inside `vector<long double>`. [`LongDouble`] is an opaque 16-byte payload
-//!   with no arithmetic (DESIGN.md D7) precisely so that a value graph-tool
+//!   with no arithmetic ([DESIGN](crate::design) D7) precisely so that a value graph-tool
 //!   wrote is handed back byte-for-byte rather than routed through an `f64`
 //!   that cannot hold it. So `long double` and `vector<long double>` convert
 //!   only to themselves; every other pair is
@@ -128,7 +128,7 @@ impl AnyValue {
 /// 15th member that can only be named. The consequence is deliberate and
 /// load-bearing: [`PyValue`](crate::prop::value::PyValue) is `!Send`, so
 /// `AnyValue` is `!Send` too in a Python build, and the carrier cannot be the
-/// hole through which a handle reaches rayon (DESIGN.md §7).
+/// hole through which a handle reaches rayon ([DESIGN](crate::design) §7).
 #[cfg(not(feature = "python"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PyCell(#[doc(hidden)] pub(crate) std::convert::Infallible);
@@ -141,7 +141,7 @@ pub struct PyCell(#[doc(hidden)] pub(crate) crate::prop::value::PyValue);
 impl Clone for PyCell {
     /// `Py_INCREF` needs a token, and `PyValue` deliberately has no `Clone`.
     /// Acquiring one here is sound and cannot deadlock a worker: the handle is
-    /// `!Send`, so this runs on the thread that made it, and DESIGN.md §7
+    /// `!Send`, so this runs on the thread that made it, and [DESIGN](crate::design) §7
     /// states explicitly that `Python::with_gil` inside a worker is the
     /// supported shape.
     fn clone(&self) -> Self {
@@ -192,7 +192,7 @@ pub trait FromAny: PropValue + Sized {
     /// Not `Clone`. Nine of the fifteen members are `Clone` and the
     /// fifteenth deliberately is not — `Py_INCREF` needs a `Python<'py>`
     /// token, which is exactly why `PyValue` has `clone_ref` and no `Clone`
-    /// impl (DESIGN.md D7, §7). Bounding [`ConvertFrom`]'s blanket impl on
+    /// impl ([DESIGN](crate::design) D7, §7). Bounding [`ConvertFrom`]'s blanket impl on
     /// `T: Clone` would therefore drop `python::object` out of the lattice,
     /// and `convert<python::object, python::object>` is `value_convert.hh:79`,
     /// the very first branch the C++ takes.

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["End"],"struct":["AdjEntry","AdjList","Block","EHash","EdgeIds","EdgeIdsOf","EdgeRef","EdgeSlot","EdgeSlots","Edges","FilterEdges","FilterIncident","FilterVertices","Incident","IncidentIter","Moved","NoLookup","ParBuilder","SwapEnds","Vertices"],"trait":["Lookup"],"type":["AllEdges","Graph","InEdges","LookupGraph","OutEdges"]};

@@ -1,0 +1,509 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/gt-core/src/view/filtered.rs`."><title>filtered.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">gt_core/view/</div>filtered.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The filtered view.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! ## Type parameter, not const generic, not runtime predicate ([DESIGN](crate::design) D3)
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//! * **Type parameter** (chosen). [`KeepAll`] is a ZST, so `Filtered&lt;G, KeepAll&gt;`
+<a href=#6 id=6 data-nosnippet>6</a>//!   carries only the two memoised counters and `F::TRIVIAL` const-folds the
+<a href=#7 id=7 data-nosnippet>7</a>//!   predicate chain away. Instantiation count: 3 directedness shapes x 2
+<a href=#8 id=8 data-nosnippet>8</a>//!   filter shapes = 6, matching `graph_filtering.hh:127` exactly.
+<a href=#9 id=9 data-nosnippet>9</a>//! * **Const generic** `Filtered&lt;G, const ON: bool&gt;`: the same six, but a const
+<a href=#10 id=10 data-nosnippet>10</a>//!   erases no *data*, so the mask fields (two fat pointers) exist in the
+<a href=#11 id=11 data-nosnippet>11</a>//!   unfiltered arm and must be populated with dummies. Strictly worse.
+<a href=#12 id=12 data-nosnippet>12</a>//! * **Runtime predicate** (`&amp;dyn Fn(EdgeId) -&gt; bool`): one instantiation
+<a href=#13 id=13 data-nosnippet>13</a>//!   instead of six, a real compile-time win, but the inner loop gains an
+<a href=#14 id=14 data-nosnippet>14</a>//!   unspeculatable indirect call that blocks unrolling. Rejected on hot
+<a href=#15 id=15 data-nosnippet>15</a>//!   paths; acceptable behind the single cold dispatch boundary.
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">use </span><span class="kw">crate</span>::adj::{EdgeRef, FilterEdges, FilterIncident, FilterVertices, Incident};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span><span class="kw">crate</span>::bound::{EdgeBound, VertexBound};
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span><span class="kw">crate</span>::dir::HasDir;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span><span class="kw">crate</span>::error::PropError;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span><span class="kw">crate</span>::graph::{Bidirectional, EdgeList, Endpoints, GraphBase, GraphRef, VertexList};
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span><span class="kw">crate</span>::ids::{EdgeId, GraphId, VertexId};
+<a href=#23 id=23 data-nosnippet>23</a>
+<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// A predicate over both identifier spaces.
+<a href=#25 id=25 data-nosnippet>25</a>///
+<a href=#26 id=26 data-nosnippet>26</a>/// One parameter, not two. `graph_filtering.cc:35` already collapses
+<a href=#27 id=27 data-nosnippet>27</a>/// `_edge_filter_active || _vertex_filter_active` into a single branch.
+<a href=#28 id=28 data-nosnippet>28</a></span><span class="kw">pub trait </span>Filter: Copy + Send + Sync {
+<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// `true` when this filter keeps everything, letting every probe fold away.
+<a href=#30 id=30 data-nosnippet>30</a>    </span><span class="kw">const </span>TRIVIAL: bool;
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// Whether `v` survives.
+<a href=#32 id=32 data-nosnippet>32</a>    </span><span class="kw">fn </span>keep_vertex(<span class="self">self</span>, v: VertexId) -&gt; bool;
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="doccomment">/// Whether `e` survives.
+<a href=#34 id=34 data-nosnippet>34</a>    </span><span class="kw">fn </span>keep_edge(<span class="self">self</span>, e: EdgeId) -&gt; bool;
+<a href=#35 id=35 data-nosnippet>35</a>}
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a><span class="doccomment">/// The trivial filter. A ZST.
+<a href=#38 id=38 data-nosnippet>38</a></span><span class="attr">#[derive(Clone, Copy, Default, Debug)]
+<a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">pub struct </span>KeepAll;
+<a href=#40 id=40 data-nosnippet>40</a>
+<a href=#41 id=41 data-nosnippet>41</a><span class="kw">impl </span>Filter <span class="kw">for </span>KeepAll {
+<a href=#42 id=42 data-nosnippet>42</a>    <span class="kw">const </span>TRIVIAL: bool = <span class="bool-val">true</span>;
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="attr">#[inline(always)]
+<a href=#44 id=44 data-nosnippet>44</a>    </span><span class="kw">fn </span>keep_vertex(<span class="self">self</span>, v: VertexId) -&gt; bool {
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="bool-val">true
+<a href=#46 id=46 data-nosnippet>46</a>    </span>}
+<a href=#47 id=47 data-nosnippet>47</a>    <span class="attr">#[inline(always)]
+<a href=#48 id=48 data-nosnippet>48</a>    </span><span class="kw">fn </span>keep_edge(<span class="self">self</span>, e: EdgeId) -&gt; bool {
+<a href=#49 id=49 data-nosnippet>49</a>        <span class="bool-val">true
+<a href=#50 id=50 data-nosnippet>50</a>    </span>}
+<a href=#51 id=51 data-nosnippet>51</a>}
+<a href=#52 id=52 data-nosnippet>52</a>
+<a href=#53 id=53 data-nosnippet>53</a><span class="doccomment">/// A filter backed by two `uint8` masks, as graph-tool's `MaskFilter`
+<a href=#54 id=54 data-nosnippet>54</a>/// (`graph_filtering.hh:42`) is.
+<a href=#55 id=55 data-nosnippet>55</a>///
+<a href=#56 id=56 data-nosnippet>56</a>/// The borrow is load-bearing: while any [`Filtered`] holding this exists, the
+<a href=#57 id=57 data-nosnippet>57</a>/// mask storage cannot be resized or replaced. graph-tool instead relies on
+<a href=#58 id=58 data-nosnippet>58</a>/// the programmer remembering `_gviews.clear()` in `set_vertex_filter_property`
+<a href=#59 id=59 data-nosnippet>59</a>/// (`graph_filtering.cc:179`) and `set_edge_filter_property` (`:196`).
+<a href=#60 id=60 data-nosnippet>60</a></span><span class="attr">#[derive(Clone, Copy, Debug)]
+<a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">pub struct </span>MaskFilter&lt;<span class="lifetime">'m</span>&gt; {
+<a href=#62 id=62 data-nosnippet>62</a>    vmask: <span class="kw-2">&amp;</span><span class="lifetime">'m </span>[u8],
+<a href=#63 id=63 data-nosnippet>63</a>    emask: <span class="kw-2">&amp;</span><span class="lifetime">'m </span>[u8],
+<a href=#64 id=64 data-nosnippet>64</a>}
+<a href=#65 id=65 data-nosnippet>65</a>
+<a href=#66 id=66 data-nosnippet>66</a><span class="kw">impl </span>Filter <span class="kw">for </span>MaskFilter&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">const </span>TRIVIAL: bool = <span class="bool-val">false</span>;
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// Non-zero keeps, exactly as `set_vertex_filter` documents ("only the
+<a href=#70 id=70 data-nosnippet>70</a>    /// vertices with value different than `False` are kept",
+<a href=#71 id=71 data-nosnippet>71</a>    /// `graph_tool/__init__.py:3505-3507`).
+<a href=#72 id=72 data-nosnippet>72</a>    ///
+<a href=#73 id=73 data-nosnippet>73</a>    /// An out-of-range probe answers *filtered out*. `MaskFilter::operator()`
+<a href=#74 id=74 data-nosnippet>74</a>    /// is `boost::get(_filtered_property, d)` (`graph_filtering.hh:51-56`) on
+<a href=#75 id=75 data-nosnippet>75</a>    /// an **unchecked** map, whose `operator[]` is an unguarded `_data[i]`
+<a href=#76 id=76 data-nosnippet>76</a>    /// (`fast_vector_property_map.hh:218-221`, defect #11): a mask shorter
+<a href=#77 id=77 data-nosnippet>77</a>    /// than the index space reads past the end. That case is unreachable
+<a href=#78 id=78 data-nosnippet>78</a>    /// through [`Filtered::masked`], which refuses a short mask; this clause
+<a href=#79 id=79 data-nosnippet>79</a>    /// is what makes it unreachable through the one remaining door -- a
+<a href=#80 id=80 data-nosnippet>80</a>    /// `MaskFilter` copied out of [`Filtered::filter`] and handed to
+<a href=#81 id=81 data-nosnippet>81</a>    /// [`Filtered::new`] on a *different*, larger graph. There it
+<a href=#82 id=82 data-nosnippet>82</a>    /// under-filters, deterministically, instead of reading out of bounds,
+<a href=#83 id=83 data-nosnippet>83</a>    /// and the memoised counts still agree with iteration because both go
+<a href=#84 id=84 data-nosnippet>84</a>    /// through this predicate.
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="attr">#[inline]
+<a href=#86 id=86 data-nosnippet>86</a>    </span><span class="kw">fn </span>keep_vertex(<span class="self">self</span>, v: VertexId) -&gt; bool {
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self</span>.vmask.get(v.index()).is_some_and(|<span class="kw-2">&amp;</span>keep| keep != <span class="number">0</span>)
+<a href=#88 id=88 data-nosnippet>88</a>    }
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Non-zero keeps. Out of range is filtered out; see
+<a href=#91 id=91 data-nosnippet>91</a>    /// [`keep_vertex`](Self::keep_vertex).
+<a href=#92 id=92 data-nosnippet>92</a>    </span><span class="attr">#[inline]
+<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="kw">fn </span>keep_edge(<span class="self">self</span>, e: EdgeId) -&gt; bool {
+<a href=#94 id=94 data-nosnippet>94</a>        <span class="self">self</span>.emask.get(e.index()).is_some_and(|<span class="kw-2">&amp;</span>keep| keep != <span class="number">0</span>)
+<a href=#95 id=95 data-nosnippet>95</a>    }
+<a href=#96 id=96 data-nosnippet>96</a>}
+<a href=#97 id=97 data-nosnippet>97</a>
+<a href=#98 id=98 data-nosnippet>98</a><span class="doccomment">/// A view restricted to the vertices and edges a [`Filter`] keeps.
+<a href=#99 id=99 data-nosnippet>99</a>///
+<a href=#100 id=100 data-nosnippet>100</a>/// Both counts are memoised at construction from [`EdgeList::edges`] and
+<a href=#101 id=101 data-nosnippet>101</a>/// [`VertexList::vertices`], using the *same* predicate the iterators use, so
+<a href=#102 id=102 data-nosnippet>102</a>/// `num_edges() == edges().count()` holds. Computing the edge count by summing
+<a href=#103 id=103 data-nosnippet>103</a>/// out-degrees instead is how a filtered undirected view comes to report three
+<a href=#104 id=104 data-nosnippet>104</a>/// edges where the answer is one.
+<a href=#105 id=105 data-nosnippet>105</a></span><span class="attr">#[derive(Clone, Copy, Debug)]
+<a href=#106 id=106 data-nosnippet>106</a></span><span class="kw">pub struct </span>Filtered&lt;G, F&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>    inner: G,
+<a href=#108 id=108 data-nosnippet>108</a>    filter: F,
+<a href=#109 id=109 data-nosnippet>109</a>    n_vertices: usize,
+<a href=#110 id=110 data-nosnippet>110</a>    n_edges: usize,
+<a href=#111 id=111 data-nosnippet>111</a>}
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a><span class="doccomment">/// Whether an edge survives, endpoints included. The single predicate shared
+<a href=#114 id=114 data-nosnippet>114</a>/// by [`Filtered::new`] and every filtered iterator.
+<a href=#115 id=115 data-nosnippet>115</a></span><span class="attr">#[inline]
+<a href=#116 id=116 data-nosnippet>116</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>keeps_edge&lt;F: Filter&gt;(f: F, e: EdgeRef) -&gt; bool {
+<a href=#117 id=117 data-nosnippet>117</a>    F::TRIVIAL || (f.keep_edge(e.id()) &amp;&amp; f.keep_vertex(e.source()) &amp;&amp; f.keep_vertex(e.target()))
+<a href=#118 id=118 data-nosnippet>118</a>}
+<a href=#119 id=119 data-nosnippet>119</a>
+<a href=#120 id=120 data-nosnippet>120</a><span class="doccomment">/// Whether an incidence survives, given that its anchor already survives.
+<a href=#121 id=121 data-nosnippet>121</a></span><span class="attr">#[inline]
+<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>keeps_incident&lt;F: Filter&gt;(f: F, i: Incident) -&gt; bool {
+<a href=#123 id=123 data-nosnippet>123</a>    F::TRIVIAL || (f.keep_edge(i.edge) &amp;&amp; f.keep_vertex(i.other))
+<a href=#124 id=124 data-nosnippet>124</a>}
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a><span class="kw">impl</span>&lt;G: GraphRef + VertexList + EdgeList, F: Filter&gt; Filtered&lt;G, F&gt; {
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="doccomment">/// Build a filtered view, memoising both honest counts.
+<a href=#128 id=128 data-nosnippet>128</a>    ///
+<a href=#129 id=129 data-nosnippet>129</a>    /// Short-circuits on `F::TRIVIAL`, so the unfiltered arm pays no prepass.
+<a href=#130 id=130 data-nosnippet>130</a>    /// Otherwise O(V + E), which is the price of an honest `num_vertices`;
+<a href=#131 id=131 data-nosnippet>131</a>    /// `filt_graph` gets O(1) by returning the wrong number.
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub fn </span>new(inner: G, filter: F) -&gt; <span class="self">Self </span>{
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#134 id=134 data-nosnippet>134</a>            <span class="kw">return </span>Filtered {
+<a href=#135 id=135 data-nosnippet>135</a>                n_vertices: inner.num_vertices(),
+<a href=#136 id=136 data-nosnippet>136</a>                n_edges: inner.num_edges(),
+<a href=#137 id=137 data-nosnippet>137</a>                inner,
+<a href=#138 id=138 data-nosnippet>138</a>                filter,
+<a href=#139 id=139 data-nosnippet>139</a>            };
+<a href=#140 id=140 data-nosnippet>140</a>        }
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="comment">// `keeps_edge` here and in `FilterEdges::next` are the *same*
+<a href=#142 id=142 data-nosnippet>142</a>        // function, which is the whole of defect #16: `num_edges` counted by
+<a href=#143 id=143 data-nosnippet>143</a>        // one rule and `edges()` yielded by another is how
+<a href=#144 id=144 data-nosnippet>144</a>        // `distance(ei, eiend) != num_edges(g)` (`graph_filtered.hh:301-312`)
+<a href=#145 id=145 data-nosnippet>145</a>        // happens. Summing degrees instead would be a third rule, and on an
+<a href=#146 id=146 data-nosnippet>146</a>        // undirected view a wrong one.
+<a href=#147 id=147 data-nosnippet>147</a>        </span><span class="kw">let </span>n_vertices = inner.vertices().filter(|<span class="kw-2">&amp;</span>v| filter.keep_vertex(v)).count();
+<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span>n_edges = inner.edges().filter(|<span class="kw-2">&amp;</span>e| keeps_edge(filter, e)).count();
+<a href=#149 id=149 data-nosnippet>149</a>        Filtered {
+<a href=#150 id=150 data-nosnippet>150</a>            inner,
+<a href=#151 id=151 data-nosnippet>151</a>            filter,
+<a href=#152 id=152 data-nosnippet>152</a>            n_vertices,
+<a href=#153 id=153 data-nosnippet>153</a>            n_edges,
+<a href=#154 id=154 data-nosnippet>154</a>        }
+<a href=#155 id=155 data-nosnippet>155</a>    }
+<a href=#156 id=156 data-nosnippet>156</a>}
+<a href=#157 id=157 data-nosnippet>157</a>
+<a href=#158 id=158 data-nosnippet>158</a><span class="kw">impl</span>&lt;G: GraphRef + VertexList + EdgeList&gt; Filtered&lt;G, KeepAll&gt; {
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// The trivially filtered view: same six types, no prepass.
+<a href=#160 id=160 data-nosnippet>160</a>    </span><span class="attr">#[inline]
+<a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">pub fn </span>all(inner: G) -&gt; <span class="self">Self </span>{
+<a href=#162 id=162 data-nosnippet>162</a>        Filtered {
+<a href=#163 id=163 data-nosnippet>163</a>            n_vertices: inner.num_vertices(),
+<a href=#164 id=164 data-nosnippet>164</a>            n_edges: inner.num_edges(),
+<a href=#165 id=165 data-nosnippet>165</a>            inner,
+<a href=#166 id=166 data-nosnippet>166</a>            filter: KeepAll,
+<a href=#167 id=167 data-nosnippet>167</a>        }
+<a href=#168 id=168 data-nosnippet>168</a>    }
+<a href=#169 id=169 data-nosnippet>169</a>}
+<a href=#170 id=170 data-nosnippet>170</a>
+<a href=#171 id=171 data-nosnippet>171</a><span class="kw">impl</span>&lt;<span class="lifetime">'m</span>, G: GraphRef + VertexList + EdgeList&gt; Filtered&lt;G, MaskFilter&lt;<span class="lifetime">'m</span>&gt;&gt; {
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// Build a mask-filtered view, validating the masks against *this graph's*
+<a href=#173 id=173 data-nosnippet>173</a>    /// own bounds.
+<a href=#174 id=174 data-nosnippet>174</a>    ///
+<a href=#175 id=175 data-nosnippet>175</a>    /// Validation and use are one statement. A free-standing
+<a href=#176 id=176 data-nosnippet>176</a>    /// `MaskFilter::new(vmask, emask, vbound, ebound)` is `Copy` and remembers
+<a href=#177 id=177 data-nosnippet>177</a>    /// nothing, so a mask admitted for a 3-vertex graph is silently accepted
+<a href=#178 id=178 data-nosnippet>178</a>    /// by a 10-vertex one and panics on first probe -- which is the same
+<a href=#179 id=179 data-nosnippet>179</a>    /// structural defect as `graph_filtering.cc:42-46` reserving separately
+<a href=#180 id=180 data-nosnippet>180</a>    /// from `MaskFilter::operator()`.
+<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="kw">pub fn </span>masked(inner: G, vmask: <span class="kw-2">&amp;</span><span class="lifetime">'m </span>[u8], emask: <span class="kw-2">&amp;</span><span class="lifetime">'m </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, PropError&gt; {
+<a href=#182 id=182 data-nosnippet>182</a>        <span class="comment">// Against the *bound*, never against `num_vertices`: the mask is
+<a href=#183 id=183 data-nosnippet>183</a>        // indexed by the unfiltered index space, which is exactly the
+<a href=#184 id=184 data-nosnippet>184</a>        // distinction `graph_filtering.cc:42-46` gets right
+<a href=#185 id=185 data-nosnippet>185</a>        // (`get_edge_index_range()`, `num_vertices(*u)`) and
+<a href=#186 id=186 data-nosnippet>186</a>        // `graph_copy.cc:66-73` gets wrong.
+<a href=#187 id=187 data-nosnippet>187</a>        </span><span class="kw">let </span>vb = inner.vertex_bound();
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">if </span>vmask.len() &lt; vb.len() {
+<a href=#189 id=189 data-nosnippet>189</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PropError::ShortMask {
+<a href=#190 id=190 data-nosnippet>190</a>                have: vmask.len(),
+<a href=#191 id=191 data-nosnippet>191</a>                need: vb.len(),
+<a href=#192 id=192 data-nosnippet>192</a>            });
+<a href=#193 id=193 data-nosnippet>193</a>        }
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span>eb = inner.edge_bound();
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="kw">if </span>emask.len() &lt; eb.len() {
+<a href=#196 id=196 data-nosnippet>196</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PropError::ShortMask {
+<a href=#197 id=197 data-nosnippet>197</a>                have: emask.len(),
+<a href=#198 id=198 data-nosnippet>198</a>                need: eb.len(),
+<a href=#199 id=199 data-nosnippet>199</a>            });
+<a href=#200 id=200 data-nosnippet>200</a>        }
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="prelude-val">Ok</span>(Filtered::new(inner, MaskFilter { vmask, emask }))
+<a href=#202 id=202 data-nosnippet>202</a>    }
+<a href=#203 id=203 data-nosnippet>203</a>}
+<a href=#204 id=204 data-nosnippet>204</a>
+<a href=#205 id=205 data-nosnippet>205</a><span class="kw">impl</span>&lt;G, F&gt; Filtered&lt;G, F&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="doccomment">/// The unfiltered view underneath.
+<a href=#207 id=207 data-nosnippet>207</a>    </span><span class="attr">#[inline]
+<a href=#208 id=208 data-nosnippet>208</a>    </span><span class="kw">pub const fn </span>inner(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>G {
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.inner
+<a href=#210 id=210 data-nosnippet>210</a>    }
+<a href=#211 id=211 data-nosnippet>211</a>    <span class="doccomment">/// The filter.
+<a href=#212 id=212 data-nosnippet>212</a>    </span><span class="attr">#[inline]
+<a href=#213 id=213 data-nosnippet>213</a>    </span><span class="kw">pub const fn </span>filter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>F {
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.filter
+<a href=#215 id=215 data-nosnippet>215</a>    }
+<a href=#216 id=216 data-nosnippet>216</a>}
+<a href=#217 id=217 data-nosnippet>217</a>
+<a href=#218 id=218 data-nosnippet>218</a><span class="kw">impl</span>&lt;G: HasDir, F&gt; HasDir <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">type </span>Dir = G::Dir;
+<a href=#220 id=220 data-nosnippet>220</a>}
+<a href=#221 id=221 data-nosnippet>221</a>
+<a href=#222 id=222 data-nosnippet>222</a><span class="kw">impl</span>&lt;G: GraphBase, F: Filter&gt; GraphBase <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="attr">#[inline]
+<a href=#224 id=224 data-nosnippet>224</a>    </span><span class="kw">fn </span>graph_id(<span class="self">self</span>) -&gt; GraphId {
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="self">self</span>.inner.graph_id()
+<a href=#226 id=226 data-nosnippet>226</a>    }
+<a href=#227 id=227 data-nosnippet>227</a>    <span class="doccomment">/// The honest filtered cardinality.
+<a href=#228 id=228 data-nosnippet>228</a>    </span><span class="attr">#[inline]
+<a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">fn </span>num_vertices(<span class="self">self</span>) -&gt; usize {
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="self">self</span>.n_vertices
+<a href=#231 id=231 data-nosnippet>231</a>    }
+<a href=#232 id=232 data-nosnippet>232</a>    <span class="doccomment">/// The honest filtered cardinality.
+<a href=#233 id=233 data-nosnippet>233</a>    </span><span class="attr">#[inline]
+<a href=#234 id=234 data-nosnippet>234</a>    </span><span class="kw">fn </span>num_edges(<span class="self">self</span>) -&gt; usize {
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="self">self</span>.n_edges
+<a href=#236 id=236 data-nosnippet>236</a>    }
+<a href=#237 id=237 data-nosnippet>237</a>    <span class="doccomment">/// The **unfiltered** allocation bound, forwarded. This is
+<a href=#238 id=238 data-nosnippet>238</a>    /// `graph_filtered.hh:316`'s behaviour, under a name that says what it is.
+<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="attr">#[inline]
+<a href=#240 id=240 data-nosnippet>240</a>    </span><span class="kw">fn </span>vertex_bound(<span class="self">self</span>) -&gt; VertexBound {
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="self">self</span>.inner.vertex_bound()
+<a href=#242 id=242 data-nosnippet>242</a>    }
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="doccomment">/// The **unfiltered** allocation bound, forwarded.
+<a href=#244 id=244 data-nosnippet>244</a>    </span><span class="attr">#[inline]
+<a href=#245 id=245 data-nosnippet>245</a>    </span><span class="kw">fn </span>edge_bound(<span class="self">self</span>) -&gt; EdgeBound {
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.inner.edge_bound()
+<a href=#247 id=247 data-nosnippet>247</a>    }
+<a href=#248 id=248 data-nosnippet>248</a>}
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a><span class="kw">impl</span>&lt;G: GraphRef, F: Filter&gt; GraphRef <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="kw">type </span>Out = FilterIncident&lt;G::Out, F&gt;;
+<a href=#252 id=252 data-nosnippet>252</a>    <span class="kw">type </span>All = FilterIncident&lt;G::All, F&gt;;
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="attr">#[inline]
+<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="kw">fn </span>out_edges(<span class="self">self</span>, v: VertexId) -&gt; <span class="self">Self</span>::Out {
+<a href=#255 id=255 data-nosnippet>255</a>        FilterIncident {
+<a href=#256 id=256 data-nosnippet>256</a>            inner: <span class="self">self</span>.inner.out_edges(v),
+<a href=#257 id=257 data-nosnippet>257</a>            filter: <span class="self">self</span>.filter,
+<a href=#258 id=258 data-nosnippet>258</a>        }
+<a href=#259 id=259 data-nosnippet>259</a>    }
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="attr">#[inline]
+<a href=#261 id=261 data-nosnippet>261</a>    </span><span class="kw">fn </span>all_edges(<span class="self">self</span>, v: VertexId) -&gt; <span class="self">Self</span>::All {
+<a href=#262 id=262 data-nosnippet>262</a>        FilterIncident {
+<a href=#263 id=263 data-nosnippet>263</a>            inner: <span class="self">self</span>.inner.all_edges(v),
+<a href=#264 id=264 data-nosnippet>264</a>            filter: <span class="self">self</span>.filter,
+<a href=#265 id=265 data-nosnippet>265</a>        }
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>    <span class="doccomment">/// O(deg), by probing. `out_degree(u, filt_graph)` counts the filtered
+<a href=#268 id=268 data-nosnippet>268</a>    /// range (`graph_filtered.hh:383-392`) rather than forwarding, and so does
+<a href=#269 id=269 data-nosnippet>269</a>    /// this. The anchor `v` itself is *not* probed, matching
+<a href=#270 id=270 data-nosnippet>270</a>    /// `out_edges(u, g)`, which applies `out_edge_pred` (edge and *target*)
+<a href=#271 id=271 data-nosnippet>271</a>    /// and never tests `u`: the caller reached `v` through `vertices()`, which
+<a href=#272 id=272 data-nosnippet>272</a>    /// already filtered it, and this is what keeps
+<a href=#273 id=273 data-nosnippet>273</a>    /// `sum(out_degree) == num_edges` true over a directed filtered view.
+<a href=#274 id=274 data-nosnippet>274</a>    </span><span class="attr">#[inline]
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>out_degree(<span class="self">self</span>, v: VertexId) -&gt; usize {
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">return </span><span class="self">self</span>.inner.out_degree(v);
+<a href=#278 id=278 data-nosnippet>278</a>        }
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="self">self</span>.out_edges(v).count()
+<a href=#280 id=280 data-nosnippet>280</a>    }
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="doccomment">/// O(deg), by probing the whole incidence run.
+<a href=#282 id=282 data-nosnippet>282</a>    ///
+<a href=#283 id=283 data-nosnippet>283</a>    /// Counted from [`all_edges`](GraphRef::all_edges), not as
+<a href=#284 id=284 data-nosnippet>284</a>    /// `in_degree + out_degree` the way `degree(u, filt_graph)`
+<a href=#285 id=285 data-nosnippet>285</a>    /// (`graph_filtered.hh:395-399`) is: that form needs a `Bidirectional`
+<a href=#286 id=286 data-nosnippet>286</a>    /// underneath, so on an undirected view it reaches
+<a href=#287 id=287 data-nosnippet>287</a>    /// `in_edges(u, undirected_adaptor)` -- the default-constructed empty
+<a href=#288 id=288 data-nosnippet>288</a>    /// range of `graph_adaptor.hh:219-227`, defect #12 -- and silently halves
+<a href=#289 id=289 data-nosnippet>289</a>    /// the answer.
+<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="attr">#[inline]
+<a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">fn </span>degree(<span class="self">self</span>, v: VertexId) -&gt; usize {
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="kw">return </span><span class="self">self</span>.inner.degree(v);
+<a href=#294 id=294 data-nosnippet>294</a>        }
+<a href=#295 id=295 data-nosnippet>295</a>        <span class="self">self</span>.all_edges(v).count()
+<a href=#296 id=296 data-nosnippet>296</a>    }
+<a href=#297 id=297 data-nosnippet>297</a>}
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a><span class="kw">impl</span>&lt;G: Bidirectional, F: Filter&gt; Bidirectional <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">type </span>In = FilterIncident&lt;G::In, F&gt;;
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="attr">#[inline]
+<a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">fn </span>in_edges(<span class="self">self</span>, v: VertexId) -&gt; <span class="self">Self</span>::In {
+<a href=#303 id=303 data-nosnippet>303</a>        FilterIncident {
+<a href=#304 id=304 data-nosnippet>304</a>            inner: <span class="self">self</span>.inner.in_edges(v),
+<a href=#305 id=305 data-nosnippet>305</a>            filter: <span class="self">self</span>.filter,
+<a href=#306 id=306 data-nosnippet>306</a>        }
+<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#308 id=308 data-nosnippet>308</a>    <span class="doccomment">/// O(deg), by probing. `in_edges`' predicate is edge-and-*source*
+<a href=#309 id=309 data-nosnippet>309</a>    /// (`in_edge_pred`), which on an anchored [`Incident`] is edge-and-`other`
+<a href=#310 id=310 data-nosnippet>310</a>    /// -- the same `keeps_incident` the out-half uses, with no orientation
+<a href=#311 id=311 data-nosnippet>311</a>    /// branch, because the anchor carries the orientation.
+<a href=#312 id=312 data-nosnippet>312</a>    </span><span class="attr">#[inline]
+<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">fn </span>in_degree(<span class="self">self</span>, v: VertexId) -&gt; usize {
+<a href=#314 id=314 data-nosnippet>314</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="kw">return </span><span class="self">self</span>.inner.in_degree(v);
+<a href=#316 id=316 data-nosnippet>316</a>        }
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="self">self</span>.in_edges(v).count()
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>}
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a><span class="kw">impl</span>&lt;G: VertexList, F: Filter&gt; VertexList <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">type </span>Vertices = FilterVertices&lt;G::Vertices, F&gt;;
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="attr">#[inline]
+<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">fn </span>vertices(<span class="self">self</span>) -&gt; <span class="self">Self</span>::Vertices {
+<a href=#325 id=325 data-nosnippet>325</a>        FilterVertices {
+<a href=#326 id=326 data-nosnippet>326</a>            inner: <span class="self">self</span>.inner.vertices(),
+<a href=#327 id=327 data-nosnippet>327</a>            filter: <span class="self">self</span>.filter,
+<a href=#328 id=328 data-nosnippet>328</a>        }
+<a href=#329 id=329 data-nosnippet>329</a>    }
+<a href=#330 id=330 data-nosnippet>330</a>}
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a><span class="kw">impl</span>&lt;G: EdgeList, F: Filter&gt; EdgeList <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">type </span>Edges = FilterEdges&lt;G::Edges, F&gt;;
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="attr">#[inline]
+<a href=#335 id=335 data-nosnippet>335</a>    </span><span class="kw">fn </span>edges(<span class="self">self</span>) -&gt; <span class="self">Self</span>::Edges {
+<a href=#336 id=336 data-nosnippet>336</a>        FilterEdges {
+<a href=#337 id=337 data-nosnippet>337</a>            inner: <span class="self">self</span>.inner.edges(),
+<a href=#338 id=338 data-nosnippet>338</a>            filter: <span class="self">self</span>.filter,
+<a href=#339 id=339 data-nosnippet>339</a>        }
+<a href=#340 id=340 data-nosnippet>340</a>    }
+<a href=#341 id=341 data-nosnippet>341</a>}
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a><span class="kw">impl</span>&lt;G: Endpoints + GraphRef, F: Filter&gt; Endpoints <span class="kw">for </span>Filtered&lt;G, F&gt; {
+<a href=#344 id=344 data-nosnippet>344</a>    <span class="doccomment">/// `None` when the edge or either endpoint is filtered out.
+<a href=#345 id=345 data-nosnippet>345</a>    ///
+<a href=#346 id=346 data-nosnippet>346</a>    /// `source(e, filt_graph)` and `target(e, filt_graph)` forward to the
+<a href=#347 id=347 data-nosnippet>347</a>    /// unfiltered graph unconditionally (`graph_filtered.hh:341-355`), so a
+<a href=#348 id=348 data-nosnippet>348</a>    /// descriptor that the view's own `edges()` never yields still resolves to
+<a href=#349 id=349 data-nosnippet>349</a>    /// a pair of vertices its own `vertices()` never yields. The predicate
+<a href=#350 id=350 data-nosnippet>350</a>    /// here is `keeps_edge` -- the same one `edges()` and `num_edges()` use.
+<a href=#351 id=351 data-nosnippet>351</a>    </span><span class="attr">#[inline]
+<a href=#352 id=352 data-nosnippet>352</a>    </span><span class="kw">fn </span>endpoints(<span class="self">self</span>, e: EdgeId) -&gt; <span class="prelude-ty">Option</span>&lt;(VertexId, VertexId)&gt; {
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span>(s, t) = <span class="self">self</span>.inner.endpoints(e)<span class="question-mark">?</span>;
+<a href=#354 id=354 data-nosnippet>354</a>        keeps_edge(<span class="self">self</span>.filter, EdgeRef::new(e, s, t)).then_some((s, t))
+<a href=#355 id=355 data-nosnippet>355</a>    }
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="attr">#[inline]
+<a href=#357 id=357 data-nosnippet>357</a>    </span><span class="kw">fn </span>opposite(<span class="self">self</span>, e: EdgeId, v: VertexId) -&gt; <span class="prelude-ty">Option</span>&lt;VertexId&gt; {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>(s, t) = <span class="self">self</span>.endpoints(e)<span class="question-mark">?</span>;
+<a href=#359 id=359 data-nosnippet>359</a>        EdgeRef::new(e, s, t).opposite(v)
+<a href=#360 id=360 data-nosnippet>360</a>    }
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="doccomment">/// The first *surviving* `s -&gt; t` edge, in this view's orientation.
+<a href=#362 id=362 data-nosnippet>362</a>    ///
+<a href=#363 id=363 data-nosnippet>363</a>    /// The scan is the point. `inner.find_edge(s, t).filter(..)` would answer
+<a href=#364 id=364 data-nosnippet>364</a>    /// `None` whenever the first parallel edge is filtered out and a later one
+<a href=#365 id=365 data-nosnippet>365</a>    /// survives -- a lookup disagreeing with the view's own `out_edges(s)`,
+<a href=#366 id=366 data-nosnippet>366</a>    /// which is defect #16 in miniature. `edge(u, v, filt_graph)` scans too
+<a href=#367 id=367 data-nosnippet>367</a>    /// (`graph_filtered.hh:502-540` drives `edge_range_iter`), so this is also
+<a href=#368 id=368 data-nosnippet>368</a>    /// what the C++ does; what the C++ then omits is the vertex predicate,
+<a href=#369 id=369 data-nosnippet>369</a>    /// testing only `g._edge_pred(e)` (`:529`), so its `edge()` returns edges
+<a href=#370 id=370 data-nosnippet>370</a>    /// whose endpoints its `vertices()` has removed. Here one predicate
+<a href=#371 id=371 data-nosnippet>371</a>    /// serves both.
+<a href=#372 id=372 data-nosnippet>372</a>    ///
+<a href=#373 id=373 data-nosnippet>373</a>    /// O(deg) when filtering is on, O(1)-or-`Lookup` when it is not.
+<a href=#374 id=374 data-nosnippet>374</a>    </span><span class="kw">fn </span>find_edge(<span class="self">self</span>, s: VertexId, t: VertexId) -&gt; <span class="prelude-ty">Option</span>&lt;EdgeRef&gt; {
+<a href=#375 id=375 data-nosnippet>375</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#376 id=376 data-nosnippet>376</a>            <span class="kw">return </span><span class="self">self</span>.inner.find_edge(s, t);
+<a href=#377 id=377 data-nosnippet>377</a>        }
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">if </span>!<span class="self">self</span>.filter.keep_vertex(s) {
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#380 id=380 data-nosnippet>380</a>        }
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>hit = <span class="self">self
+<a href=#383 id=383 data-nosnippet>383</a>            </span>.inner
+<a href=#384 id=384 data-nosnippet>384</a>            .out_edges(s)
+<a href=#385 id=385 data-nosnippet>385</a>            .find(|<span class="kw-2">&amp;</span>i| i.other == t &amp;&amp; keeps_incident(f, i))<span class="question-mark">?</span>;
+<a href=#386 id=386 data-nosnippet>386</a>        <span class="comment">// Orientation comes from the inner view, so a reversed view reports
+<a href=#387 id=387 data-nosnippet>387</a>        // reversed endpoints and an undirected one reports storage order --
+<a href=#388 id=388 data-nosnippet>388</a>        // each exactly as its own unfiltered `find_edge` would.
+<a href=#389 id=389 data-nosnippet>389</a>        </span><span class="kw">let </span>(es, et) = <span class="self">self</span>.inner.endpoints(hit.edge)<span class="question-mark">?</span>;
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="prelude-val">Some</span>(EdgeRef::new(hit.edge, es, et))
+<a href=#391 id=391 data-nosnippet>391</a>    }
+<a href=#392 id=392 data-nosnippet>392</a>}
+<a href=#393 id=393 data-nosnippet>393</a>
+<a href=#394 id=394 data-nosnippet>394</a><span class="comment">// ---------------------------------------------------------------------------
+<a href=#395 id=395 data-nosnippet>395</a>// Iterator impls for the filtering adaptors declared in `adj::iter`.
+<a href=#396 id=396 data-nosnippet>396</a>// ---------------------------------------------------------------------------
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a></span><span class="kw">impl</span>&lt;I: Iterator&lt;Item = Incident&gt;, F: Filter&gt; Iterator <span class="kw">for </span>FilterIncident&lt;I, F&gt; {
+<a href=#399 id=399 data-nosnippet>399</a>    <span class="kw">type </span>Item = Incident;
+<a href=#400 id=400 data-nosnippet>400</a>    <span class="doccomment">/// `Iterator::find` rather than a hand-rolled `while let`, so the probe
+<a href=#401 id=401 data-nosnippet>401</a>    /// runs inside the inner iterator's own `try_fold` and keeps the
+<a href=#402 id=402 data-nosnippet>402</a>    /// unrolled slice loop that `IncidentIter::fold` exists to expose.
+<a href=#403 id=403 data-nosnippet>403</a>    </span><span class="attr">#[inline]
+<a href=#404 id=404 data-nosnippet>404</a>    </span><span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Incident&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#406 id=406 data-nosnippet>406</a>            <span class="kw">return </span><span class="self">self</span>.inner.next();
+<a href=#407 id=407 data-nosnippet>407</a>        }
+<a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="self">self</span>.inner.find(|<span class="kw-2">&amp;</span>i| keeps_incident(f, i))
+<a href=#410 id=410 data-nosnippet>410</a>    }
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="attr">#[inline]
+<a href=#412 id=412 data-nosnippet>412</a>    </span><span class="kw">fn </span>size_hint(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (usize, <span class="prelude-ty">Option</span>&lt;usize&gt;) {
+<a href=#413 id=413 data-nosnippet>413</a>        (<span class="number">0</span>, <span class="self">self</span>.inner.size_hint().<span class="number">1</span>)
+<a href=#414 id=414 data-nosnippet>414</a>    }
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="attr">#[inline]
+<a href=#416 id=416 data-nosnippet>416</a>    </span><span class="kw">fn </span>fold&lt;B, Fun: FnMut(B, Incident) -&gt; B&gt;(<span class="self">self</span>, init: B, <span class="kw-2">mut </span>fun: Fun) -&gt; B {
+<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#418 id=418 data-nosnippet>418</a>            <span class="kw">return </span><span class="self">self</span>.inner.fold(init, fun);
+<a href=#419 id=419 data-nosnippet>419</a>        }
+<a href=#420 id=420 data-nosnippet>420</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.inner.fold(init, <span class="kw">move </span>|acc, i| {
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="kw">if </span>keeps_incident(f, i) {
+<a href=#423 id=423 data-nosnippet>423</a>                fun(acc, i)
+<a href=#424 id=424 data-nosnippet>424</a>            } <span class="kw">else </span>{
+<a href=#425 id=425 data-nosnippet>425</a>                acc
+<a href=#426 id=426 data-nosnippet>426</a>            }
+<a href=#427 id=427 data-nosnippet>427</a>        })
+<a href=#428 id=428 data-nosnippet>428</a>    }
+<a href=#429 id=429 data-nosnippet>429</a>}
+<a href=#430 id=430 data-nosnippet>430</a>
+<a href=#431 id=431 data-nosnippet>431</a><span class="doccomment">/// Filtering never resurrects an exhausted iterator, so fusedness survives it.
+<a href=#432 id=432 data-nosnippet>432</a>/// [`ExactSizeIterator`] deliberately does **not**: that is the `ExactIncidence`
+<a href=#433 id=433 data-nosnippet>433</a>/// refinement ([DESIGN](crate::design) section 4) which filtered views do not implement.
+<a href=#434 id=434 data-nosnippet>434</a></span><span class="kw">impl</span>&lt;I: std::iter::FusedIterator&lt;Item = Incident&gt;, F: Filter&gt; std::iter::FusedIterator
+<a href=#435 id=435 data-nosnippet>435</a>    <span class="kw">for </span>FilterIncident&lt;I, F&gt;
+<a href=#436 id=436 data-nosnippet>436</a>{
+<a href=#437 id=437 data-nosnippet>437</a>}
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a><span class="kw">impl</span>&lt;I: Iterator&lt;Item = EdgeRef&gt;, F: Filter&gt; Iterator <span class="kw">for </span>FilterEdges&lt;I, F&gt; {
+<a href=#440 id=440 data-nosnippet>440</a>    <span class="kw">type </span>Item = EdgeRef;
+<a href=#441 id=441 data-nosnippet>441</a>    <span class="doccomment">/// `keeps_edge`, the same predicate [`Filtered::new`] counted with --
+<a href=#442 id=442 data-nosnippet>442</a>    /// which is what makes `num_edges() == edges().count()` a fact rather
+<a href=#443 id=443 data-nosnippet>443</a>    /// than a hope.
+<a href=#444 id=444 data-nosnippet>444</a>    </span><span class="attr">#[inline]
+<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;EdgeRef&gt; {
+<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#447 id=447 data-nosnippet>447</a>            <span class="kw">return </span><span class="self">self</span>.inner.next();
+<a href=#448 id=448 data-nosnippet>448</a>        }
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="self">self</span>.inner.find(|<span class="kw-2">&amp;</span>e| keeps_edge(f, e))
+<a href=#451 id=451 data-nosnippet>451</a>    }
+<a href=#452 id=452 data-nosnippet>452</a>    <span class="attr">#[inline]
+<a href=#453 id=453 data-nosnippet>453</a>    </span><span class="kw">fn </span>size_hint(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (usize, <span class="prelude-ty">Option</span>&lt;usize&gt;) {
+<a href=#454 id=454 data-nosnippet>454</a>        (<span class="number">0</span>, <span class="self">self</span>.inner.size_hint().<span class="number">1</span>)
+<a href=#455 id=455 data-nosnippet>455</a>    }
+<a href=#456 id=456 data-nosnippet>456</a>    <span class="attr">#[inline]
+<a href=#457 id=457 data-nosnippet>457</a>    </span><span class="kw">fn </span>fold&lt;B, Fun: FnMut(B, EdgeRef) -&gt; B&gt;(<span class="self">self</span>, init: B, <span class="kw-2">mut </span>fun: Fun) -&gt; B {
+<a href=#458 id=458 data-nosnippet>458</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#459 id=459 data-nosnippet>459</a>            <span class="kw">return </span><span class="self">self</span>.inner.fold(init, fun);
+<a href=#460 id=460 data-nosnippet>460</a>        }
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#462 id=462 data-nosnippet>462</a>        <span class="self">self</span>.inner.fold(
+<a href=#463 id=463 data-nosnippet>463</a>            init,
+<a href=#464 id=464 data-nosnippet>464</a>            <span class="kw">move </span>|acc, e| {
+<a href=#465 id=465 data-nosnippet>465</a>                <span class="kw">if </span>keeps_edge(f, e) { fun(acc, e) } <span class="kw">else </span>{ acc }
+<a href=#466 id=466 data-nosnippet>466</a>            },
+<a href=#467 id=467 data-nosnippet>467</a>        )
+<a href=#468 id=468 data-nosnippet>468</a>    }
+<a href=#469 id=469 data-nosnippet>469</a>}
+<a href=#470 id=470 data-nosnippet>470</a>
+<a href=#471 id=471 data-nosnippet>471</a><span class="kw">impl</span>&lt;I: std::iter::FusedIterator&lt;Item = EdgeRef&gt;, F: Filter&gt; std::iter::FusedIterator
+<a href=#472 id=472 data-nosnippet>472</a>    <span class="kw">for </span>FilterEdges&lt;I, F&gt;
+<a href=#473 id=473 data-nosnippet>473</a>{
+<a href=#474 id=474 data-nosnippet>474</a>}
+<a href=#475 id=475 data-nosnippet>475</a>
+<a href=#476 id=476 data-nosnippet>476</a><span class="kw">impl</span>&lt;I: Iterator&lt;Item = VertexId&gt;, F: Filter&gt; Iterator <span class="kw">for </span>FilterVertices&lt;I, F&gt; {
+<a href=#477 id=477 data-nosnippet>477</a>    <span class="kw">type </span>Item = VertexId;
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="attr">#[inline]
+<a href=#479 id=479 data-nosnippet>479</a>    </span><span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;VertexId&gt; {
+<a href=#480 id=480 data-nosnippet>480</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#481 id=481 data-nosnippet>481</a>            <span class="kw">return </span><span class="self">self</span>.inner.next();
+<a href=#482 id=482 data-nosnippet>482</a>        }
+<a href=#483 id=483 data-nosnippet>483</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#484 id=484 data-nosnippet>484</a>        <span class="self">self</span>.inner.find(|<span class="kw-2">&amp;</span>v| f.keep_vertex(v))
+<a href=#485 id=485 data-nosnippet>485</a>    }
+<a href=#486 id=486 data-nosnippet>486</a>    <span class="attr">#[inline]
+<a href=#487 id=487 data-nosnippet>487</a>    </span><span class="kw">fn </span>size_hint(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (usize, <span class="prelude-ty">Option</span>&lt;usize&gt;) {
+<a href=#488 id=488 data-nosnippet>488</a>        (<span class="number">0</span>, <span class="self">self</span>.inner.size_hint().<span class="number">1</span>)
+<a href=#489 id=489 data-nosnippet>489</a>    }
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="attr">#[inline]
+<a href=#491 id=491 data-nosnippet>491</a>    </span><span class="kw">fn </span>fold&lt;B, Fun: FnMut(B, VertexId) -&gt; B&gt;(<span class="self">self</span>, init: B, <span class="kw-2">mut </span>fun: Fun) -&gt; B {
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">if </span>F::TRIVIAL {
+<a href=#493 id=493 data-nosnippet>493</a>            <span class="kw">return </span><span class="self">self</span>.inner.fold(init, fun);
+<a href=#494 id=494 data-nosnippet>494</a>        }
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">let </span>f = <span class="self">self</span>.filter;
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="self">self</span>.inner.fold(
+<a href=#497 id=497 data-nosnippet>497</a>            init,
+<a href=#498 id=498 data-nosnippet>498</a>            <span class="kw">move </span>|acc, v| {
+<a href=#499 id=499 data-nosnippet>499</a>                <span class="kw">if </span>f.keep_vertex(v) { fun(acc, v) } <span class="kw">else </span>{ acc }
+<a href=#500 id=500 data-nosnippet>500</a>            },
+<a href=#501 id=501 data-nosnippet>501</a>        )
+<a href=#502 id=502 data-nosnippet>502</a>    }
+<a href=#503 id=503 data-nosnippet>503</a>}
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a><span class="kw">impl</span>&lt;I: std::iter::FusedIterator&lt;Item = VertexId&gt;, F: Filter&gt; std::iter::FusedIterator
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">for </span>FilterVertices&lt;I, F&gt;
+<a href=#507 id=507 data-nosnippet>507</a>{
+<a href=#508 id=508 data-nosnippet>508</a>}
+</code></pre></div></section></main></body></html>

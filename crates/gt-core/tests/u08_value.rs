@@ -243,7 +243,7 @@ fn is_scalar_is_the_cpp_filter_minus_long_double() {
     ]);
     let ours = set_of(ValueKind::is_scalar);
 
-    // THE ONE DOCUMENTED DIVERGENCE (DESIGN.md, and the module docs on
+    // THE ONE DOCUMENTED DIVERGENCE (`gt_core::design`, and the module docs on
     // `prop::value`). `long double` is carried as an opaque 16-byte payload
     // with no arithmetic -- `f128` is unstable, and reinterpreting an 80-bit
     // extended value as `f64` would change what a `.gt` file round-trips to.
@@ -566,7 +566,7 @@ fn a_long_double_round_trips_through_a_dense_prop_unchanged() {
 // 5. The negative guarantees
 // ===========================================================================
 
-/// DESIGN.md §6 quotes both of these diagnostics. Neither has a runtime
+/// `gt_core::design` §6 quotes both of these diagnostics. Neither has a runtime
 /// representation, so neither can be asserted any other way — and both
 /// regress silently: dropping the generated `const` assertion turns the first
 /// into a *runtime* `DispatchError` that names the wrong type, and widening a

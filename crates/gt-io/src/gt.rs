@@ -54,7 +54,7 @@
 //! that has never had an edge removed that is byte-for-byte graph-tool's own
 //! order; after removals it is the port's, because `AdjList` removes by
 //! swapping with the back of the half where `graph_adjacency.hh:1257-1263`
-//! erases and shifts (DESIGN.md defect #52). Sorting makes the output a
+//! erases and shifts ([DESIGN](gt_core::design) defect #52). Sorting makes the output a
 //! function of the graph rather than of its removal history.
 
 use std::io::{BufReader, BufWriter, Read, Write};

@@ -1,0 +1,45 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Degree and weighted-degree kernels."><title>gt_algo::degree - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_algo" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module degree</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_algo/index.html">gt_algo</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module degree</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#what-the-three-overload-sets-become-here" title="What the three overload sets become here">What the three overload sets become here</a></li><li><a href="#directedness" title="Directedness">Directedness</a></li><li><a href="#accumulator-width" title="Accumulator width">Accumulator width</a></li></ul><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>algo</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_algo</a></div><h1>Module <span>degree</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_algo/degree.rs.html#1-296">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Degree and weighted-degree kernels.</p>
+<p>These are the port of <code>graph_selectors.hh:104-129</code>, where three separate
+overloads exist to give a constant-weight fast path. Two of the three are
+<em>uninstantiable dead code</em>: <code>:109</code> and <code>:178</code> read <code>weight.c</code> on
+<code>ConstantPropertyMap</code>, whose member is the private <code>_c</code>
+(<code>graph_properties.hh:677</code>), so the constant-weight fast path silently does
+not exist in graph-tool.</p>
+<h3 id="what-the-three-overload-sets-become-here"><a class="doc-anchor" href="#what-the-three-overload-sets-become-here">§</a>What the three overload sets become here</h3>
+<p><code>in_degreeS</code>, <code>out_degreeS</code> and <code>total_degreeS</code> each dispatch on four
+things at once in C++: the weight map’s <em>type</em> (<code>no_weightS</code>,
+<code>UnityPropertyMap</code>, <code>ConstantPropertyMap</code>, anything else) and the graph’s
+<code>directed_category</code>. Here the second axis is the view algebra and the first
+is two associated <code>const</code>s:</p>
+<ul>
+<li><code>W::IS_UNITY</code> reproduces <code>get_out_degree(v, g, const UnityPropertyMap&amp;)</code>
+(<code>graph_selectors.hh:182-187</code>) – return the plain degree;</li>
+<li><code>W::IS_CONSTANT</code> reproduces <code>out_degree(v, g) * weight.c</code>
+(<code>:173-179</code>), the overload that cannot be instantiated in C++ because
+<code>weight.c</code> does not name an accessible member. [<code>Constant</code>]’s field is
+public, so the fast path exists here (defect #44);</li>
+<li>everything else is <code>:190-197</code>’s accumulation loop.</li>
+</ul>
+<p>Both consts are <code>const</code>, so the branch is resolved at monomorphisation and
+the untaken arms are dead code before LLVM sees them: the <code>Unity</code>
+instantiation of <a href="fn.weighted_out_degree.html" title="fn gt_algo::degree::weighted_out_degree"><code>weighted_out_degree</code></a> contains no loop at all.</p>
+<h3 id="directedness"><a class="doc-anchor" href="#directedness">§</a>Directedness</h3>
+<p><code>get_in_degree(v, g, std::false_type, Weight&amp;&amp;)</code> (<code>graph_selectors.hh:133-148</code>)
+returns <code>val_t()</code> – zero – for an undirected graph, so C++ answers a
+question it cannot answer with a plausible number. <a href="fn.weighted_in_degree.html" title="fn gt_algo::degree::weighted_in_degree"><code>weighted_in_degree</code></a>
+is bounded on [<code>Bidirectional</code>] instead, which <a href="gt_core::view::Und"><code>Und</code></a>
+deliberately does not implement, so the same call is <code>error[E0599]</code>.</p>
+<p><code>get_total_degree(..., std::false_type, ...)</code> (<code>:239-244</code>) forwards to
+<code>out_degreeS</code>, and that identity survives here without a special case:
+<code>Und&lt;G&gt;::all_edges</code> and <code>Und&lt;G&gt;::out_edges</code> are the same run
+(<code>view/undirected.rs:106-116</code>), so <a href="fn.weighted_degree.html" title="fn gt_algo::degree::weighted_degree"><code>weighted_degree</code></a> and
+<a href="fn.weighted_out_degree.html" title="fn gt_algo::degree::weighted_out_degree"><code>weighted_out_degree</code></a> agree on an undirected view by construction.</p>
+<h3 id="accumulator-width"><a class="doc-anchor" href="#accumulator-width">§</a>Accumulator width</h3>
+<p>C++ accumulates in <code>property_traits&lt;Weight&gt;::value_type</code>, so an <code>int32_t</code>
+weight map sums into an <code>int32_t</code> and overflows silently at 2³¹. Every
+kernel here accumulates in <code>f64</code> via [<code>ToF64</code>], which is exact to 2⁵³ for
+the integer members and cannot wrap. The bound is [<code>ToF64</code>] and not
+<code>Into&lt;f64&gt;</code> precisely so that <code>i64</code> – the width graph-tool actually
+instantiates – is admissible; <code>i64: Into&lt;f64&gt;</code> does not hold. See
+<code>tests/ui/u15_i64_weight_is_admissible.rs</code>.</p>
+</div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.degree_histogram.html" title="fn gt_algo::degree::degree_histogram">degree_<wbr>histogram</a></dt><dd>The degree histogram.</dd><dt><a class="fn" href="fn.out_degrees.html" title="fn gt_algo::degree::out_degrees">out_<wbr>degrees</a></dt><dd>Fill a vertex map with out-degrees.</dd><dt><a class="fn" href="fn.weighted_degree.html" title="fn gt_algo::degree::weighted_degree">weighted_<wbr>degree</a></dt><dd>Sum of a weight map over every edge incident to <code>v</code>.</dd><dt><a class="fn" href="fn.weighted_in_degree.html" title="fn gt_algo::degree::weighted_in_degree">weighted_<wbr>in_<wbr>degree</a></dt><dd>Sum of a weight map over <code>v</code>’s in-edges.</dd><dt><a class="fn" href="fn.weighted_out_degree.html" title="fn gt_algo::degree::weighted_out_degree">weighted_<wbr>out_<wbr>degree</a></dt><dd>Sum of a weight map over <code>v</code>’s out-edges.</dd></dl></section></div></main></body></html>

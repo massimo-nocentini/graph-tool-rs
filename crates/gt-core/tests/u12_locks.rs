@@ -2,7 +2,7 @@
 //!
 //! Two things are under test and they are not the same thing.
 //!
-//! 1. **[`pair_mut`] returns the two rows in caller order.** DESIGN.md D9
+//! 1. **[`pair_mut`] returns the two rows in caller order.** `gt_core::design` D9
 //!    names the failure exactly: an API handing back `[&mut T; 2]` sorted by
 //!    index turns `pair_mut(xs, 3, 1)` into `[&mut xs[1], &mut xs[3]]`, and a
 //!    caller that binds `pr, ps` positionally then writes both groups'

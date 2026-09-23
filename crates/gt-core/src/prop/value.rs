@@ -1,6 +1,6 @@
 //! The closed 15-member value universe.
 //!
-//! ## What is on the base trait, and why it matters (DESIGN.md D7)
+//! ## What is on the base trait, and why it matters ([DESIGN](crate::design) D7)
 //!
 //! Two of the source designs wrote
 //! `trait PropValue: Sealed + Default + Send + Sync + 'static`. Both bounds

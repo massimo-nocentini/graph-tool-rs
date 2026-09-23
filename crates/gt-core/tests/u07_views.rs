@@ -14,7 +14,7 @@
 //! What is left is exactly what an external crate *can* see, and it is not
 //! nothing:
 //!
-//! * **layout** — DESIGN.md §11's table for all six views, including the two
+//! * **layout** — `gt_core::design` §11's table for all six views, including the two
 //!   that decided D3: `KeepAll` erases the mask fields (a const generic would
 //!   not), and `Und<Arc<AdjList>>` is the layout
 //!   `reinterpret_pointer_cast<ug_t>` produces, obtained by a move;
@@ -66,7 +66,7 @@ fn assert_type_eq<A: 'static, B: 'static>(what: &str) {
 }
 
 // ===========================================================================
-// 1. Layout (DESIGN.md §11)
+// 1. Layout (`gt_core::design` §11)
 // ===========================================================================
 
 /// The three unfiltered views are one machine word: a view is a *pointer*, and
@@ -233,7 +233,7 @@ fn keep_all_keeps_everything_at_compile_time() {
 ///   effect is to *silently ignore* the request: the undirected view is
 ///   returned unreversed, and nothing tells the caller. Here there is no
 ///   `Reverse for Und<_>` impl, so the call does not exist.
-/// * `ExactIncidence` on a filtered view is `error[E0277]`. DESIGN.md §4
+/// * `ExactIncidence` on a filtered view is `error[E0277]`. `gt_core::design` §4
 ///   records this as the resolution of the one question a source design left
 ///   open: `GraphRef` cannot require `ExactSizeIterator`, because a
 ///   per-edge-predicate view cannot supply a length without walking — and

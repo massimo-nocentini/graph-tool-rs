@@ -85,7 +85,7 @@ impl<V: ?Sized> Allows<V> for Seq {}
 pub trait ModeOf: PropValue {
     /// The mode this member forces.
     ///
-    /// `Allows<Self>` is not decoration: it is the second of DESIGN.md §7's
+    /// `Allows<Self>` is not decoration: it is the second of [DESIGN](gt_core::design) §7's
     /// three mechanisms, moved from the strategy impls up onto the table
     /// itself, so that the table cannot be edited into unsoundness even by
     /// someone who never reads the strategy bounds.
@@ -154,7 +154,7 @@ pub type ModeFor<S, T> = <<S as ModeOf>::Mode as Meet<<T as ModeOf>::Mode>>::Out
 /// all. gt-core's diagonal therefore reaches the interpreter by *re-acquiring*
 /// the token (`Python::with_gil` inside `PyCell`'s `Clone`), once per value.
 ///
-/// That is sound, and DESIGN.md §7 says so explicitly. It is also exactly the
+/// That is sound, and [DESIGN](gt_core::design) §7 says so explicitly. It is also exactly the
 /// work `Seq` exists to avoid: `Seq::copy` was handed a `Python<'_>` and holds
 /// it for the whole loop, so re-deriving one per element is a TLS probe and a
 /// guard construction per property-map entry, paid for nothing. The
@@ -211,7 +211,7 @@ where
 /// re-acquires one with `Python::with_gil` per value, which on this path is a
 /// TLS probe and a guard construction per property-map entry that `Seq` was
 /// already handed a token to avoid. The re-entrant acquisition is sound
-/// (DESIGN.md section 7), and correctness does not depend on removing it. The
+/// ([DESIGN](gt_core::design) section 7), and correctness does not depend on removing it. The
 /// saving needs a token parameter on gt-core's `FromAny`, which is gt-core's
 /// call to make; when it exists, this body becomes the direct
 /// `ToPyObject::to_object(py, s)` and this note goes away.
@@ -271,7 +271,7 @@ const MIN_PAR_ITEMS: usize = 300;
 
 /// Items per parallel chunk.
 ///
-/// A **constant**, deliberately: DESIGN.md §8 forbids any partition that is a
+/// A **constant**, deliberately: [DESIGN](gt_core::design) §8 forbids any partition that is a
 /// function of the pool size, so that a run with one worker and a run with
 /// sixteen perform the same work in the same grouping. Nothing here folds
 /// floating point, so the grouping cannot move a result; what it fixes is
@@ -280,7 +280,7 @@ const PAR_GRAIN: usize = 256;
 
 /// The two runs a copy operates on, each checked against the bound.
 ///
-/// Both maps must already be sized: DESIGN.md §5 and U32 put the sizing at the
+/// Both maps must already be sized: [DESIGN](gt_core::design) §5 and U32 put the sizing at the
 /// Python entry point, *before* `detach`, which is the only place it can
 /// happen for a map of [`PyValue`] (the member has no context-free default, so
 /// `DenseProp::sized_for` is not available to it). Handing back the short run
@@ -568,7 +568,7 @@ mod tests {
         assert_eq!(serial, vec![ValueKind::PyObject]);
     }
 
-    /// The grain is a constant. DESIGN.md §8's whole claim is that no
+    /// The grain is a constant. [DESIGN](gt_core::design) §8's whole claim is that no
     /// partition may be a function of the pool size, and the cheapest way for
     /// that to regress is for someone to "improve" this into
     /// `rayon::current_num_threads()`.

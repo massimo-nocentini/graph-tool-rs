@@ -47,7 +47,7 @@ impl EdgeIds {
     /// Ports `get_free_idx` (`graph_adjacency.hh:627-655`), serial branch:
     /// LIFO off the back of the free list, else `_edge_idx_range++`. The
     /// concurrent branch (`_free_idx_m[get_thread_num()]`) has no counterpart
-    /// -- DESIGN.md defect #51: `&mut AdjList` refuses concurrent mutation and
+    /// -- [DESIGN](crate::design) defect #51: `&mut AdjList` refuses concurrent mutation and
     /// `ParBuilder` replaces the bulk case deterministically, so there is no
     /// per-thread free list whose contents depend on the schedule.
     ///

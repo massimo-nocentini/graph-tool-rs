@@ -7,7 +7,7 @@
 //! half's end, not the block's end. That one detail is why the global list
 //! yields each edge once although every edge is stored twice (once in the
 //! source's out-half, once in the target's in-half), and it is the property
-//! DESIGN.md section 4 leans on when it makes `EdgeList::edges` — not
+//! `gt_core::design` section 4 leans on when it makes `EdgeList::edges` — not
 //! degree-summation — the definition of `num_edges` on a view.
 //!
 //! ## Why the graph-building tests are conditional
@@ -26,7 +26,7 @@
 //! `fold`/`next` agreement, and the skip cost as a step count rather than a
 //! timing. What this file adds on top is the wiring: that `AdjList::edges`
 //! hands `Edges::new` the right slice, and that the honest count
-//! `edges().count() == num_edges()` (DESIGN.md section 4) survives removals.
+//! `edges().count() == num_edges()` (`gt_core::design` section 4) survives removals.
 
 use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
@@ -255,7 +255,7 @@ fn an_edgeless_graph_sweeps_empty() {
 
 /// After removals the id space is sparse, so the sweep is where "each edge
 /// exactly once" has to hold against a *free list*: `num_edges()` is
-/// `EdgeIds::live()` and the sweep must agree with it, which is DESIGN.md's
+/// `EdgeIds::live()` and the sweep must agree with it, which is `gt_core::design`'s
 /// answer to defect #16 (`distance(ei, eiend) != num_edges(g)`, `:301-312`).
 #[test]
 fn the_sweep_agrees_with_num_edges_after_removals() {
@@ -288,7 +288,7 @@ fn the_sweep_agrees_with_num_edges_after_removals() {
 // 4. The codegen assertion
 // ===========================================================================
 //
-// IMPLEMENTATION_PLAN.md asks for the disassembly of
+// `gt_core::implementation_plan` asks for the disassembly of
 //
 //     fn s(g: &AdjList, v: VertexId) -> u64 { g.out_edges(v).map(|i| i.other.raw() as u64).sum() }
 //

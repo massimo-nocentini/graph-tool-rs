@@ -800,7 +800,7 @@ proptest! {
 // ===========================================================================
 // 7. The allocation ledger
 //
-// DESIGN.md section 3: "`clear_vertex_where` is one loop over `remove_edge`,
+// gt_core::design section 3: "`clear_vertex_where` is one loop over `remove_edge`,
 // filling the reusable scratch -- no per-call `Vec`, which a judge measured
 // at 2-4 allocations per call in the design that used one."  That is a claim
 // about a number, so it is measured.

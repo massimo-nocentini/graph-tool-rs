@@ -30,7 +30,7 @@
 //! The throws are the defect. They are reachable from
 //! `DynamicPropertyMapWrap::get`, which `graph_properties_copy.cc` calls from
 //! inside an OpenMP loop whose `GILRelease` guard is already inverted
-//! (DESIGN.md §7); an exception crossing a `#pragma omp parallel` boundary is
+//! ([DESIGN](crate::design) §7); an exception crossing a `#pragma omp parallel` boundary is
 //! `std::terminate`. A `Result` cannot do that.
 
 use std::marker::PhantomData;
@@ -190,7 +190,7 @@ where
     P::Value: ToAny,
 {
     // Bound to `&P::Value`, never moved: `graph_properties_copy.hh:62`'s inner
-    // loop is what the by-reference `ReadProp::Ref` exists for (DESIGN.md D6),
+    // loop is what the by-reference `ReadProp::Ref` exists for (`gt_core::design` D6),
     // and a `get(k) -> Value` here would allocate for nine of the fifteen
     // members before the conversion even starts.
     let slot = map.get_ref(k);
@@ -354,7 +354,7 @@ mod tests {
 
     /// `Unity` implements `ReadProp` only, so it can be erased read-only and
     /// the write is refused rather than silently discarded
-    /// (`graph_properties.hh:714`, DESIGN.md §5).
+    /// (`graph_properties.hh:714`, [DESIGN](crate::design) §5).
     #[test]
     fn unity_erases_read_only() {
         let mut w: DynWrap<VertexTag, String> =

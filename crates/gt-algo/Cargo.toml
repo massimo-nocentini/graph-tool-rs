@@ -12,7 +12,7 @@ gt-core = { workspace = true }
 rayon   = { workspace = true }
 
 # ---------------------------------------------------------------------------
-# Test harness (DESIGN.md section 16).
+# Test harness (gt_core::design section 16).
 # ---------------------------------------------------------------------------
 [dev-dependencies]
 criterion = { workspace = true }

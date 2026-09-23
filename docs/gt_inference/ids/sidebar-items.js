@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BEdge","Epoch","Group","Stamp","StateId"],"trait":["Weight"]};

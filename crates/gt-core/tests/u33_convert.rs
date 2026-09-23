@@ -419,7 +419,7 @@ fn the_two_groups_never_mix() {
 
 /// `std::is_scalar_v<long double>` is true, so the C++ converts it to every
 /// scalar and to `std::string`. Here it is a 16-byte opaque payload with no
-/// arithmetic (DESIGN.md D7), so it is the diagonal and nothing else — and
+/// arithmetic (`gt_core::design` D7), so it is the diagonal and nothing else — and
 /// what that buys is the round-trip: a value graph-tool wrote into a `.gt`
 /// file comes back byte for byte instead of through an `f64` that has 11 fewer
 /// bits of mantissa and a much smaller exponent range.
@@ -639,11 +639,11 @@ fn underlying_names_the_stored_member() {
 }
 
 // ===========================================================================
-// 9. The instantiation budget — DESIGN.md §10
+// 9. The instantiation budget — `gt_core::design` §10
 // ===========================================================================
 
 /// `prop_map_as` (`graph_properties.cc:69-87`) crosses two 30-wide ranges and
-/// emits 900 leaves. DESIGN.md §10 claims 45 here: 15 identity + 15 `to_any` +
+/// emits 900 leaves. `gt_core::design` §10 claims 45 here: 15 identity + 15 `to_any` +
 /// 15 `from_any`. This is that claim, measured on the symbols this very test
 /// binary carries — it instantiates all 196 ordered pairs above, so if the
 /// lattice were pairwise the count would be in the hundreds.

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAGIC","VERSION"],"enum":["PropertyColumn","PropertyDomain"],"fn":["read","write"],"struct":["Document","NamedProperty"],"trait":["ColumnValue"]};

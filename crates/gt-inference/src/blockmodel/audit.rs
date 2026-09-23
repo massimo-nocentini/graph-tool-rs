@@ -404,7 +404,7 @@ where
 /// are invariant under a vertex move, so neither can drift against an
 /// accumulated `sparse_ds`.
 ///
-/// **Deviation from the skeleton (DESIGN.md rule 7).** `slots` was added, for
+/// **Deviation from the skeleton ([DESIGN](gt_core::design) rule 7).** `slots` was added, for
 /// the same reason `dense_ds` needed it: the sum runs over the block graph,
 /// [`BlockView::n_groups`] is `_actual_B` -- the number of *occupied* groups,
 /// not an index bound -- and the trait offers no way to enumerate block-graph

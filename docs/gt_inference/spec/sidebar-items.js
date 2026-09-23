@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Proposal"],"trait":["Checkpointed","EntropyArgs","GroupHooks","GroupProposal","Mergeable","ParallelMove","SpecCore"]};

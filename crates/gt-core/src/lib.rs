@@ -4,10 +4,10 @@
 //! the view algebra, the closed property-value universe, property maps, and
 //! deterministic parallel primitives.
 //!
-//! The architecture of record is `graph-tool-rs/docs/DESIGN.md`. Read it before
-//! changing any public signature here; several of them encode a decision that
-//! was contested, and the reason lives in that document rather than in the
-//! code.
+//! The architecture of record is [`design`]; the unit-by-unit work order is
+//! [`implementation_plan`]. Read the former before changing any public
+//! signature here; several of them encode a decision that was contested, and
+//! the reason lives in that document rather than in the code.
 //!
 //! ## Invariants this crate exists to enforce
 //!
@@ -29,10 +29,12 @@
 
 pub mod adj;
 pub mod bound;
+pub mod design;
 pub mod dir;
 pub mod error;
 pub mod graph;
 pub mod ids;
+pub mod implementation_plan;
 pub mod par;
 pub mod prop;
 pub mod view;

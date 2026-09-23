@@ -1,6 +1,6 @@
 //! The state/loop layering.
 //!
-//! ## The rule that makes Potts-style bugs impossible (DESIGN.md D8)
+//! ## The rule that makes Potts-style bugs impossible ([DESIGN](gt_core::design) D8)
 //!
 //! graph-tool's layering is *mixin-from-below*: `SpecBase::Imp`
 //! (`base/spec_base.hh:58-130`) `= delete`s exactly three members --

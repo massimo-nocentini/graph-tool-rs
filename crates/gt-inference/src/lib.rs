@@ -10,7 +10,7 @@
 //! balance in a state that does not yet exist, and `apply_delta` finally
 //! replays it.
 //!
-//! ## What actually dissolves the borrow conflict (DESIGN.md D10)
+//! ## What actually dissolves the borrow conflict ([DESIGN](gt_core::design) D10)
 //!
 //! Not, as one design argued, carrying a before-image in each entry. Three
 //! readers are three *shared* borrows and never conflicted with each other;

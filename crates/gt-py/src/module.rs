@@ -20,7 +20,7 @@
 //! ## Where the fifteenth member went
 //!
 //! `#[pyclass]` requires `Send`, and [`PyValue`] is `!Send` by construction
-//! (DESIGN.md section 7). That is not an obstacle to work around; it is the
+//! ([DESIGN](gt_core::design) section 7). That is not an obstacle to work around; it is the
 //! guarantee arriving at the boundary, and the only honest way to spell it is
 //! **two classes**:
 //!
@@ -41,7 +41,7 @@
 //!
 //! No entry point here panics on a caller error. `GraphError`, `PropError` and
 //! `DispatchError` become a `PyErr` at the boundary and nothing above relies
-//! on `catch_unwind`, which is what DESIGN.md section 10 promises when
+//! on `catch_unwind`, which is what [DESIGN](gt_core::design) section 10 promises when
 //! `[profile.release] panic = "abort"` removes unwinding entirely. The
 //! exception classes are graph-tool's own translation table
 //! (`graph_bind.cc:63-76`): `ValueException -> ValueError`,
@@ -126,7 +126,7 @@ fn key_error<K: IdTag>(key: usize, bound: usize) -> PyErr {
 ///
 /// Twelve of the fourteen GIL-free members delegate to pyo3's own conversions.
 /// [`LongDouble`] and `Vec<LongDouble>` cannot: the type is an *opaque
-/// 16-byte payload* with no arithmetic (DESIGN.md D7), so the only lossless
+/// 16-byte payload* with no arithmetic ([DESIGN](gt_core::design) D7), so the only lossless
 /// Python spelling is `bytes`. Exposing it as a `float` would round-trip an
 /// 80-bit extended value through a `double` and write a different one back to
 /// the `.gt` file, which is the whole failure the opaque carrier exists to
@@ -474,7 +474,7 @@ impl PyGraph {
     /// Sum a scalar-valued property map over this graph's index space.
     ///
     /// The worked example of the three-step shape. Note that the map is
-    /// read-only to the kernel and is **sized anyway** (DESIGN.md section 5),
+    /// read-only to the kernel and is **sized anyway** ([DESIGN](gt_core::design) section 5),
     /// and that the bound comes from the map's own key type exactly as
     /// `_get_any` chooses between `num_vertices` and `edge_index_range`
     /// (`graph_tool/__init__.py:363-373`).
@@ -548,7 +548,7 @@ fn new_property(slf: &Bound<'_, PyGraph>, value_type: &str, edge: bool) -> PyRes
     // It returns `None` only for `PyObject`, which the branch above took;
     // spelled as an error rather than an `expect` so that a sixteenth member
     // turns a coverage gap into a `ValueError` and not a panic at the
-    // boundary (DESIGN.md defect table, row 34).
+    // boundary (`gt_core::design` defect table, row 34).
     let missing = || PyValueError::new_err(format!("Invalid property type: {value_type}"));
     let store = if edge {
         KeyStore::Edge(Store::new(graph_id, kind).ok_or_else(missing)?)
@@ -649,7 +649,7 @@ impl PyPropertyMap {
 /// A `python::object` property map, owned by Python.
 ///
 /// `unsendable` is not a concession: [`PyValue`] is `!Send` by construction
-/// (DESIGN.md section 7, mechanism 3), so a store of them is `!Send` and
+/// ([DESIGN](gt_core::design) section 7, mechanism 3), so a store of them is `!Send` and
 /// `#[pyclass]` will not accept it without the marker. That is the inverted
 /// `is_python` predicate of `graph_properties_copy.cc:35-42` -- which releases
 /// the GIL and runs `#pragma omp parallel` in exactly the object-to-object
@@ -673,7 +673,7 @@ impl PyObjectPropertyMap {
 /// `sized_for_with`, not `sized_for`: `Py<PyAny>` has no `Default` and the
 /// default `python::object` is `Py_None`, which needs the interpreter. That is
 /// why [`Zeroed`](gt_core::prop::Zeroed) is not a supertrait of
-/// [`PropValue`](gt_core::prop::PropValue) -- see DESIGN.md section 13.1.
+/// [`PropValue`](gt_core::prop::PropValue) -- see [DESIGN](gt_core::design) section 13.1.
 fn obj_get<K: IdTag>(
     py: Python<'_>,
     map: &mut DenseProp<PyValue, K>,
@@ -719,7 +719,7 @@ fn obj_set<K: IdTag>(
 ///
 /// An exception from `f` propagates as a `PyErr` through `?`. Nothing
 /// unwinds, so `[profile.release] panic = "abort"` changes nothing about this
-/// path -- which is the claim DESIGN.md section 10 makes for the whole
+/// path -- which is the claim [DESIGN](gt_core::design) section 10 makes for the whole
 /// boundary.
 fn obj_map<K: IdTag>(
     py: Python<'_>,

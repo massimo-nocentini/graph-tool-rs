@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Applied","Delta","DeltaBuf","DeltaStack","EndImage","Entry","LevelIter","MoveHeader","MoveKey","OutOfPlane","Receipt","Recording","SlotRef","Transition","Workspace"],"trait":["Resolve"]};

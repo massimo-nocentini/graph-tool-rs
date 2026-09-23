@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="GraphML."><title>gt_io::graphml - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module graphml</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_io/index.html">gt_io</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module graphml</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-type-name-table" title="The type-name table">The type-name table</a></li><li><a href="#long-double-in-a-text-format" title="`long double` in a text format"><code>long double</code> in a text format</a></li><li><a href="#ordering" title="Ordering">Ordering</a></li></ul><h3><a href="#constants">Module Items</a></h3><ul class="block"><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>io</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_io</a></div><h1>Module <span>graphml</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_io/graphml.rs.html#1-1703">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>GraphML.</p>
+<p>Ports the writer of <code>src/boost-workaround/boost/graph/graphml.hpp</code>
+(<code>write_graphml</code>, <code>:353-528</code>) and the reader of <code>src/graph/graphml.cpp</code>
+(<code>graphml_reader</code>, <code>:44-479</code>), together with the <code>mutate_graph_impl</code>
+glue that sits between the reader and the property maps
+(<code>graphml.hpp:93-286</code>).</p>
+<h3 id="the-type-name-table"><a class="doc-anchor" href="#the-type-name-table">§</a>The type-name table</h3>
+<p>GraphML’s <code>attr.type</code> is <em>not</em> [<code>ValueKind::name</code>]. It is
+<code>prop_type_names[]</code> (<code>graphml.cpp:27-31</code>) indexed by position in
+<code>prop_value_types</code> (<code>graphml.hpp:38-43</code>), and neither the names nor the
+order match <code>type_names[]</code>/<code>value_types</code> in <code>graph_properties.hh</code>:</p>
+<div><table><thead><tr><th>this port’s [<code>ValueKind</code>]</th><th><code>attr.type</code></th><th>note</th></tr></thead><tbody>
+<tr><td><code>F64</code> (<code>double</code>)</td><td><code>float</code></td><td></td></tr>
+<tr><td><code>LongDouble</code> (<code>long double</code>)</td><td><code>double</code></td><td><em>not</em> IEEE double</td></tr>
+<tr><td><code>VecF64</code></td><td><code>vector_float</code></td><td></td></tr>
+<tr><td><code>VecLongDouble</code></td><td><code>vector_double</code></td><td></td></tr>
+<tr><td><code>PyObject</code></td><td><code>python_object</code></td><td>base64 of the pickle payload</td></tr>
+</tbody></table>
+</div>
+<p>So a GraphML file written by another tool that declares <code>attr.type="double"</code>
+– which in the GraphML specification means IEEE double – is read by
+graph-tool as <code>long double</code>. That is a compatibility hazard, not a defect
+in the code, and this port reproduces it: changing the table would make
+graph-tool unable to read files this crate writes.</p>
+<h3 id="long-double-in-a-text-format"><a class="doc-anchor" href="#long-double-in-a-text-format">§</a><code>long double</code> in a text format</h3>
+<p>[<code>LongDouble</code>] is an opaque 16-byte payload with no arithmetic
+(<a href="gt_core::design">DESIGN</a> row 49), and a text format needs a <em>representation</em>. This module
+writes it as a C99 hexadecimal float – <code>0x8p-3</code> for <code>1.0</code> – because that
+is exact, and because graph-tool’s own reader takes long doubles through
+<code>sscanf("%La")</code> (<code>str_repr.hh:81-84</code>), which accepts precisely that form.
+Decimal input is accepted too, by parsing it as <code>f64</code> and widening, which
+is exact for every value a <code>double</code> can hold and is what a file <em>written</em>
+by graph-tool contains (<code>print_float</code>, <code>:62-69</code>). The interpretation is the
+x86-64 80-bit extended layout; see [<code>long_double_to_text</code>].</p>
+<h3 id="ordering"><a class="doc-anchor" href="#ordering">§</a>Ordering</h3>
+<p><code>dynamic_properties</code> is a <code>std::multimap&lt;std::string, ...&gt;</code>, so
+<code>write_graphml</code>’s three walks over <code>dp</code> (<code>graphml.hpp:383</code>, <code>:430</code>, <code>:458</code>)
+visit the properties <strong>sorted by name</strong>, whatever order they were added in.
+[<code>write</code>] sorts a stable copy of the index range the same way, so the key
+ids and the <code>&lt;data&gt;</code> order are a function of the document alone. Edges are
+emitted in [<code>EdgeId</code>] order, per the crate-level ordering contract.</p>
+</div></details><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.EDGE_ID_KEY.html" title="constant gt_io::graphml::EDGE_ID_KEY">EDGE_<wbr>ID_<wbr>KEY</a></dt><dd>The edge property <code>read_graphml</code> fills with the file’s own edge ids when
+they are not canonical (<code>graphml.cpp:388-389</code>).</dd><dt><a class="constant" href="constant.VERTEX_ID_KEY.html" title="constant gt_io::graphml::VERTEX_ID_KEY">VERTEX_<wbr>ID_<wbr>KEY</a></dt><dd>The vertex property <code>read_graphml</code> fills with the file’s own node ids when
+they are not canonical (<code>graphml.cpp:340-342</code>).</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.read.html" title="fn gt_io::graphml::read">read</a></dt><dd>Read a GraphML document.</dd><dt><a class="fn" href="fn.write.html" title="fn gt_io::graphml::write">write</a></dt><dd>Write a GraphML document, edges in <a href="gt_core::ids::EdgeId"><code>EdgeId</code></a> order.</dd></dl></section></div></main></body></html>

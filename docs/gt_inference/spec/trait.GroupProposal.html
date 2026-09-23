@@ -1,0 +1,73 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The proposal kernel and its density, in one impl block."><title>GroupProposal in gt_inference::spec - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_inference" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">GroupProposal</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_inference/index.html">gt_<wbr>inference</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Group<wbr>Proposal</a></h2><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.log_reverse" title="log_reverse">log_reverse</a></li><li><a href="#tymethod.propose" title="propose">propose</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.log_hastings" title="log_hastings">log_hastings</a></li><li><a href="#method.propose_local" title="propose_local">propose_local</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In gt_<wbr>inference::<wbr>spec</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_inference</a>::<wbr><a href="index.html">spec</a></div><h1>Trait <span class="trait">Group<wbr>Proposal</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_inference/spec.rs.html#110-148">Source</a> </span></div><pre class="rust item-decl"><code>pub trait GroupProposal: <a class="trait" href="trait.SpecCore.html" title="trait gt_inference::spec::SpecCore">SpecCore</a> {
+    // Required methods
+    fn <a href="#tymethod.propose" class="fn">propose</a>&lt;R: <a class="trait" href="https://rust-random.github.io/rand/rand/rng/trait.Rng.html" title="trait rand::rng::Rng">Rng</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+        &amp;self,
+        v: VertexId,
+        r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+        c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+        d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+        rng: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.reference.html">&amp;mut R</a>,
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.98.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.log_reverse" class="fn">log_reverse</a>(
+        &amp;self,
+        v: VertexId,
+        r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+        s: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+        c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+        d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>;
+
+    // Provided methods
+    fn <a href="#method.log_hastings" class="fn">log_hastings</a>(
+        &amp;self,
+        v: VertexId,
+        r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+        p: &amp;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>,
+        c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+        d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.propose_local" class="fn">propose_local</a>&lt;R: <a class="trait" href="https://rust-random.github.io/rand/rand/rng/trait.Rng.html" title="trait rand::rng::Rng">Rng</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+        &amp;self,
+        v: VertexId,
+        r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+        rng: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.reference.html">&amp;mut R</a>,
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.98.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>&gt; { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The proposal kernel <strong>and</strong> its density, in one impl block.</p>
+<p>Bundling them is the substantive fix. In C++ the sampler and the density
+can come from <em>different classes</em> in the inheritance chain; in Rust trait
+items resolve per-<code>impl</code>, so one type supplies both and a disagreement is a
+local, visible inconsistency rather than an inheritance accident.</p>
+<p>The generator is a <strong>type parameter</strong>, not a fixed concrete type: a
+concrete <code>Rng</code> baked into the trait would make swapping the generator, or
+testing with a deterministic stub, an edit to every signature.</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.propose" class="method"><a class="src rightside" href="../../src/gt_inference/spec.rs.html#112-119">Source</a><h4 class="code-header">fn <a href="#tymethod.propose" class="fn">propose</a>&lt;R: <a class="trait" href="https://rust-random.github.io/rand/rand/rng/trait.Rng.html" title="trait rand::rng::Rng">Rng</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+    &amp;self,
+    v: VertexId,
+    r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+    c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+    d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+    rng: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.reference.html">&amp;mut R</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.98.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>&gt;</h4></section></summary><div class="docblock"><p>Sample a move, returning its own forward log-density.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.log_reverse" class="method"><a class="src rightside" href="../../src/gt_inference/spec.rs.html#122">Source</a><h4 class="code-header">fn <a href="#tymethod.log_reverse" class="fn">log_reverse</a>(&amp;self, v: VertexId, r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>, s: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>, c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>, d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a></h4></section></summary><div class="docblock"><p><code>log q(s -&gt; r | v)</code> for the reverse move, which is never sampled.</p>
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.log_hastings" class="method"><a class="src rightside" href="../../src/gt_inference/spec.rs.html#133-135">Source</a><h4 class="code-header">fn <a href="#method.log_hastings" class="fn">log_hastings</a>(
+    &amp;self,
+    v: VertexId,
+    r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+    p: &amp;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>,
+    c: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+    d: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>,
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a></h4></section></summary><div class="docblock"><p>The Hastings ratio. Derived, so the loop never hand-swaps the
+endpoints.</p>
+<p><code>base/mcmc.hh:123-124</code> is
+<code>pf = get_move_prob(v, r, nr, c, d, false);</code>
+<code>pb = get_move_prob(v, nr, r, c, d, true);</code> – the caller must exchange
+<code>r</code> and <code>nr</code> <strong>and</strong> flip the flag, in agreement, on two adjacent
+lines. Here there is nothing to exchange.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.propose_local" class="method"><a class="src rightside" href="../../src/gt_inference/spec.rs.html#140-147">Source</a><h4 class="code-header">fn <a href="#method.propose_local" class="fn">propose_local</a>&lt;R: <a class="trait" href="https://rust-random.github.io/rand/rand/rng/trait.Rng.html" title="trait rand::rng::Rng">Rng</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+    &amp;self,
+    v: VertexId,
+    r: <a class="struct" href="../ids/struct.Group.html" title="struct gt_inference::ids::Group">Group</a>,
+    rng: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.reference.html">&amp;mut R</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.98.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.Proposal.html" title="struct gt_inference::spec::Proposal">Proposal</a>&gt;</h4></section></summary><div class="docblock"><p>A local proposal. Derived from <a href="trait.GroupProposal.html#tymethod.propose" title="method gt_inference::spec::GroupProposal::propose"><code>propose</code></a>, so the
+default is legitimate (<code>spec_base.hh:83-86</code>).</p>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.98.1/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety".</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../trait.impl/gt_inference/spec/trait.GroupProposal.js" async></script></section></div></main></body></html>

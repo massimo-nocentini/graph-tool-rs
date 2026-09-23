@@ -1,6 +1,6 @@
 //! What the Python boundary costs per call.
 //!
-//! DESIGN.md section 12 claims "one `TypeId` compare at the boundary, against
+//! gt_core::design section 12 claims "one `TypeId` compare at the boundary, against
 //! up to three `any_cast` probes per candidate plus a try/catch on the Python
 //! path". The C++ side of that comparison is `dispatch.hh`'s linear scan over
 //! a Hana cartesian product, ending — when nothing matches — in a runtime

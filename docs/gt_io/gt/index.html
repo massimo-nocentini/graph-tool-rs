@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The native binary `.gt` format."><title>gt_io::gt - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module gt</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_io/index.html">gt_io</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module gt</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#endianness" title="Endianness">Endianness</a></li><li><a href="#pythonobject" title="`python::object`"><code>python::object</code></a></li><li><a href="#ordering" title="Ordering">Ordering</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>io</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_io</a></div><h1>Module <span>gt</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_io/gt.rs.html#1-1050">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The native binary <code>.gt</code> format.</p>
+<p>Ports <code>src/graph/graph_io_binary.hh</code> in full. The layout, byte for byte:</p>
+<div class="example-wrap"><pre class="language-text"><code>&quot;\u{26fe} gt&quot;          6 bytes, `_magic` (`graph_io_binary.hh:30-31`)
+version               u8, `_version == 1` (`:32`)
+big_endian            u8, `is_bigendian()` of the *writing* host (`:447`)
+comment               string (`:449-456`)
+directed              u8  \
+N                     u64  |  `write_adjacency` (`:186-202`)
+N x vector&lt;Vint&gt;           /  `Vint` is the narrowest of u8/u16/u32/u64 that holds N-1
+nprops                u64 (`:459-460`)
+nprops x property          `write_property` (`:367-382`)</code></pre></div>
+<p>where a <em>string</em> is a <code>u64</code> length followed by that many bytes (<code>:71-76</code>),
+a <em>vector</em> is a <code>u64</code> count followed by that many fixed-width elements
+(<code>:62-68</code>), and a <em>property</em> is a domain byte (<code>:248-253</code>), a name string,
+a value-type index byte, and then one value per element of the domain’s
+range – one for a graph property, <code>N</code> for a vertex property, <code>num_edges</code>
+for an edge property.</p>
+<h3 id="endianness"><a class="doc-anchor" href="#endianness">§</a>Endianness</h3>
+<p>Every multi-byte field after the <code>big_endian</code> flag is in the byte order
+that flag declares; [<code>write</code>] emits the host’s own order and sets the flag
+to match, exactly as <code>write_graph</code> does (<code>:447</code>). The <em>comment</em>, however,
+is read by the C++ with <code>read&lt;false&gt;</code> (<code>:534</code>) – that is, always as
+little-endian – while it is written with the host’s order (<code>:456</code>), so a
+big-endian build of graph-tool writes a header it cannot itself read. This
+port reads the comment’s length in the order the flag declares, which is
+identical on every little-endian host and correct on the others.</p>
+<h3 id="pythonobject"><a class="doc-anchor" href="#pythonobject">§</a><code>python::object</code></h3>
+<p>The C++ serialises the Python member as <code>lexical_cast&lt;std::string&gt;(v)</code>
+(<code>:86-90</code>), and that cast is <code>object_pickler</code> (<code>graph_io.cc:62-68</code>), which
+is <code>pickle.dump(obj, sstream, -1)</code> (<code>graph_tool/gt_io.py:63-67</code>). So a
+<code>python::object</code> column <em>in the file</em> is a column of opaque pickle
+payloads, and nothing about reading or writing one needs an interpreter.
+<a href="enum.PropertyColumn.html#variant.PyObject" title="variant gt_io::gt::PropertyColumn::PyObject"><code>PropertyColumn::PyObject</code></a> carries those payloads as bytes, for the same
+reason [<code>LongDouble</code>] carries sixteen: the bytes round-trip unchanged
+whether or not this build has the <code>python</code> feature, and unpickling is the
+boundary layer’s business, not the format’s.</p>
+<h3 id="ordering"><a class="doc-anchor" href="#ordering">§</a>Ordering</h3>
+<p>Edge property values are positional: the reader binds the <code>i</code>-th value to
+the <code>i</code>-th edge of <code>edges_range(g)</code> (<code>:398-399</code>), so the adjacency section
+and every edge property column must agree on one traversal order. This port
+uses <em>out-edges of each vertex in ascending vertex order, and within a
+vertex in ascending <a href="gt_core::ids::EdgeId"><code>EdgeId</code></a> order</em>. On a graph
+that has never had an edge removed that is byte-for-byte graph-tool’s own
+order; after removals it is the port’s, because <code>AdjList</code> removes by
+swapping with the back of the half where <code>graph_adjacency.hh:1257-1263</code>
+erases and shifts (<a href="gt_core::design">DESIGN</a> defect #52). Sorting makes the output a
+function of the graph rather than of its removal history.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Document.html" title="struct gt_io::gt::Document">Document</a></dt><dd>Everything a <code>.gt</code> file holds.</dd><dt><a class="struct" href="struct.NamedProperty.html" title="struct gt_io::gt::NamedProperty">Named<wbr>Property</a></dt><dd>A property map read from, or to be written to, a file.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.PropertyColumn.html" title="enum gt_io::gt::PropertyColumn">Property<wbr>Column</a></dt><dd>One property map’s values, erased over the fifteen-member value universe.</dd><dt><a class="enum" href="enum.PropertyDomain.html" title="enum gt_io::gt::PropertyDomain">Property<wbr>Domain</a></dt><dd>Which identifier space a property map is keyed on.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.MAGIC.html" title="constant gt_io::gt::MAGIC">MAGIC</a></dt><dd><code>_magic</code> (<code>graph_io_binary.hh:30</code>): U+26FE SESQUIQUADRATE, a space, <code>gt</code>.</dd><dt><a class="constant" href="constant.VERSION.html" title="constant gt_io::gt::VERSION">VERSION</a></dt><dd><code>_version</code> (<code>graph_io_binary.hh:32</code>).</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.ColumnValue.html" title="trait gt_io::gt::ColumnValue">Column<wbr>Value</a></dt><dd>A Rust type that can be a <code>.gt</code> property column.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.read.html" title="fn gt_io::gt::read">read</a></dt><dd>Read a <code>.gt</code> stream.</dd><dt><a class="fn" href="fn.write.html" title="fn gt_io::gt::write">write</a></dt><dd>Write a <code>.gt</code> stream.</dd></dl></section></div></main></body></html>

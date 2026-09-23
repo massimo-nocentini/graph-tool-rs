@@ -3,7 +3,7 @@
 //! The Boost.Python replacement, and the only crate in the workspace that
 //! names `pyo3`.
 //!
-//! ## What the GIL guarantee actually is (DESIGN.md D7, D9)
+//! ## What the GIL guarantee actually is ([DESIGN](gt_core::design) D7, D9)
 //!
 //! `graph_properties_copy.cc:35-42` -- and its four verbatim clones at `:69`,
 //! `:104`, `:145`, and `graph_properties_copy.hh:36-40` -- computes
@@ -51,7 +51,7 @@
 #![allow(dead_code, unused_variables)]
 // NOTE: no `forbid(unsafe_code)` here, and only here. pyo3's `#[pymodule]`,
 // `#[pyclass]` and `#[pymethods]` macros expand to `unsafe extern "C"` FFI
-// glue. No hand-written `unsafe` appears in this crate; see DESIGN.md
+// glue. No hand-written `unsafe` appears in this crate; see `gt_core::design`
 // section 9.
 //
 // pyo3 0.22's macro expansion predates edition 2024's

@@ -1,4 +1,4 @@
-//! Adjacency storage: the numbers behind DESIGN.md section 12.
+//! Adjacency storage: the numbers behind `gt_core::design` section 12.
 //!
 //! Each group here corresponds to one line of the ledger or one row of the
 //! defect table, and exists so that the line stops being an assertion:

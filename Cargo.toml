@@ -1,4 +1,4 @@
-# graph-tool 3.8 -> Rust port. Architecture of record: docs/DESIGN.md
+# graph-tool 3.8 -> Rust port. Architecture of record: gt_core::design
 [workspace]
 resolver = "3"
 members = [
@@ -30,7 +30,7 @@ rand_chacha = "0.9"
 pyo3        = { version = "0.22", default-features = false, features = ["macros"] }
 
 # ---------------------------------------------------------------------------
-# Dev-only. DESIGN.md section 16 ("Testing discipline this port requires")
+# Dev-only. gt_core::design section 16 ("Testing discipline this port requires")
 # makes all three mandatory from the first unit rather than optional extras,
 # because every source design said "verified by compiling it" and shipped a
 # defect its own claims denied:
@@ -39,7 +39,7 @@ pyo3        = { version = "0.22", default-features = false, features = ["macros"
 #               (add/remove/clear/swap_remove, `validate()` after every op) and
 #               the SBM (random moves priced against a from-scratch entropy).
 #   trybuild  - one compile-fail fixture per negative guarantee in section 14.
-#               The six diagnostics DESIGN.md claims to have verified regress
+#               The six diagnostics gt_core::design claims to have verified regress
 #               silently the first time someone adds a blanket impl unless a
 #               fixture pins each one.
 #   criterion - section 12 is a ledger with numbers in it, and numbers rot.
@@ -55,7 +55,7 @@ criterion = { version = "0.8", default-features = false, features = [
 ] }
 
 # ---------------------------------------------------------------------------
-# Profiles. Rationale in docs/DESIGN.md section 10 ("Instantiation budget").
+# Profiles. Rationale in gt_core::design section 10 ("Instantiation budget").
 # ---------------------------------------------------------------------------
 
 [profile.release]

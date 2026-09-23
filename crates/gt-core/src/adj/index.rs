@@ -1,6 +1,6 @@
 //! Derived indexes: the edge slot table, and the optional `(s,t)` lookup.
 //!
-//! ## The slot table is not optional (DESIGN.md D1)
+//! ## The slot table is not optional ([DESIGN](crate::design) D1)
 //!
 //! graph-tool makes `_epos` a runtime flag (`_keep_epos`, `graph_adjacency.hh:619`)
 //! and then writes `clear_vertex` **twice**, once for each setting

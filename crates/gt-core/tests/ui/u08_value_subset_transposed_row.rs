@@ -1,4 +1,4 @@
-//! DESIGN.md §6, first half of the `value_subset!` guarantee.
+//! `gt_core::design` §6, first half of the `value_subset!` guarantee.
 //!
 //! `$variant => $ty` is, on its face, an unchecked claim: nothing about the
 //! macro's *expansion* requires the named [`ValueKind`] and the named type to

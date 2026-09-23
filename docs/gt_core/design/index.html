@@ -1,0 +1,1145 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="graph-tool 3.8 → Rust: the architecture of record"><title>gt_core::design - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module design</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_core/index.html">gt_core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module design</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#graph-tool-38--rust-the-architecture-of-record" title="graph-tool 3.8 → Rust: the architecture of record">graph-tool 3.8 → Rust: the architecture of record</a><ul><li><a href="#0-what-this-port-is-and-what-it-is-not" title="0. What this port is, and what it is not">0. What this port is, and what it is not</a></li><li><a href="#1-crate-layout" title="1. Crate layout">1. Crate layout</a></li><li><a href="#2-the-contested-decisions" title="2. The contested decisions">2. The contested decisions</a></li><li><a href="#3-storage" title="3. Storage">3. Storage</a></li><li><a href="#4-views" title="4. Views">4. Views</a></li><li><a href="#5-property-maps-and-the-value-universe" title="5. Property maps and the value universe">5. Property maps and the value universe</a></li><li><a href="#6-dispatch" title="6. Dispatch">6. Dispatch</a></li><li><a href="#7-the-python-boundary-and-the-gil" title="7. The Python boundary and the GIL">7. The Python boundary and the GIL</a></li><li><a href="#8-determinism" title="8. Determinism">8. Determinism</a></li><li><a href="#9-unsafe-budget" title="9. Unsafe budget">9. Unsafe budget</a></li><li><a href="#10-instantiation-budget" title="10. Instantiation budget">10. Instantiation budget</a></li><li><a href="#11-verified-layout" title="11. Verified layout">11. Verified layout</a></li><li><a href="#12-performance-ledger-honestly" title="12. Performance ledger, honestly">12. Performance ledger, honestly</a></li><li><a href="#13-changes-forced-by-the-compiler" title="13. Changes forced by the compiler">13. Changes forced by the compiler</a></li><li><a href="#14-defect-table" title="14. Defect table">14. Defect table</a></li><li><a href="#15-what-is-still-open" title="15. What is still open">15. What is still open</a></li><li><a href="#16-testing-discipline-this-port-requires" title="16. Testing discipline this port requires">16. Testing discipline this port requires</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>core</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_core</a></div><h1>Module <span>design</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_core/design.rs.html#1-1307">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="graph-tool-38--rust-the-architecture-of-record"><a class="doc-anchor" href="#graph-tool-38--rust-the-architecture-of-record">§</a>graph-tool 3.8 → Rust: the architecture of record</h2>
+<p>This document is authoritative. Where it disagrees with a comment in the code,
+the code is wrong. Where a public signature here cannot be made to compile, the
+signature was changed and the change is recorded in §13.</p>
+<p>Everything asserted below about the C++ was read in
+<code>../src/graph</code> at the stated line. Everything asserted about the Rust was
+compiled with rustc 1.98.1; the layout numbers and the compiler diagnostics in
+§9 and §10 are copied from a run, not recalled.</p>
+<hr />
+<h3 id="0-what-this-port-is-and-what-it-is-not"><a class="doc-anchor" href="#0-what-this-port-is-and-what-it-is-not">§</a>0. What this port is, and what it is not</h3>
+<p>graph-tool is a dynamically typed Python frontend over monomorphic C++ kernels.
+The C++ recovers the static type at the boundary by a linear <code>any_cast</code> scan
+over a Hana cartesian product of graph views × property value types, then hands
+the resolved types to a template. That shape is not an accident and this port
+does not try to remove it: <strong>a dynamically typed frontend still needs the
+product.</strong></p>
+<p>What the port changes is the <em>kind of failure</em> available at each layer:</p>
+<div><table><thead><tr><th>layer</th><th>graph-tool</th><th>here</th></tr></thead><tbody>
+<tr><td>a dispatch axis has no arm</td><td>runtime <code>DispatchNotFound</code>, message: “This is a graph_tool bug. :-(” (<code>dispatch.hh:86-88</code>)</td><td>exhaustive <code>match</code>; a new view is <code>error[E0004]</code></td></tr>
+<tr><td>a state supplies a member under the wrong name</td><td>silently inherits a <em>working</em> default (<code>spec_base.hh:88-109</code>)</td><td><code>error[E0407]</code> / <code>error[E0046]</code></td></tr>
+<tr><td>a property map is shorter than the graph</td><td>unchecked write (<code>dispatch.hh:174</code> → <code>fast_vector_property_map.hh:218</code>)</td><td>the short view is not a constructible value</td></tr>
+<tr><td>an undirected view is asked for in-edges</td><td>empty range (<code>graph_adaptor.hh:224-233</code>)</td><td><code>error[E0599]</code></td></tr>
+<tr><td>a Python-valued map reaches a parallel loop</td><td>happens, with the GIL released (<code>graph_properties_copy.cc:35-42</code>)</td><td><code>error[E0599]</code>: the type is <code>!Send</code></td></tr>
+<tr><td>two derived indexes disagree</td><td>possible; <code>check_epos</code> exists and every call site is commented out (<code>:1206</code>, <code>:1289</code>, <code>:1433</code>)</td><td><code>validate()</code> runs after every mutation under <code>debug_assertions</code></td></tr>
+</tbody></table>
+</div>
+<p>It is <strong>not</strong> a performance rewrite. §12 is an honest ledger, and it contains
+three places where this port is slower than the C++ and says so.</p>
+<hr />
+<h3 id="1-crate-layout"><a class="doc-anchor" href="#1-crate-layout">§</a>1. Crate layout</h3><div class="example-wrap"><pre class="language-text"><code>graph-tool-rs/
+  Cargo.toml                     workspace, resolver 3, edition 2024
+  Makefile                       `make doc`: rustdoc for the workspace -&gt; docs/
+  crates/
+    gt-core        ids · dir · adj · view · prop · par · bound · graph
+                   design · implementation_plan   ← this document and the plan
+    gt-algo        traversal · components · degree · centrality · topology
+    gt-inference   delta · spec · metropolis · blockmodel
+    gt-io          gt · graphml · dot · csv
+    gt-py          gil · dispatch · value · module     ← the only crate naming pyo3
+  docs/                          generated by `make doc`; never edited by hand</code></pre></div>
+<p>Five crates, not the eleven the source designs proposed between them. Two
+reasons. First, the <code>value_subset!</code> macro and the types it names
+(<code>ValueKind</code>, <code>DispatchError</code>, <code>PropValue</code>) <strong>must live in the same crate</strong>: a
+<code>macro_rules!</code> body expanding <code>$crate::ValueKind</code> resolves <code>$crate</code> to the crate
+that <em>defines the macro</em>, so splitting them gives <code>error[E0433]: could not find ValueKind in crate $crate</code> at every invocation. Second, crate boundaries are
+recompilation boundaries and there are ~21 000 monomorphised leaves to get
+through; five is already coarse enough to hurt (§10).</p>
+<p><code>gt-core</code> carries two optional features:</p>
+<ul>
+<li><code>python</code> — compiles <code>prop::value::PyValue</code>. gt-py enables it. The Python
+member of the value universe lives in gt-core, not gt-py, because
+<code>PropValue</code>’s seal is a <strong>private</strong> module: if the trait could be implemented
+downstream, a newtype over a bare <code>pyo3::Py&lt;PyAny&gt;</code> could re-enter the
+universe with <code>Send + Sync</code> intact and defeat §7 entirely.</li>
+<li><code>wide-index</code> — swaps <code>ids::Raw</code> from <code>u32</code> to <code>u64</code>.</li>
+</ul>
+<hr />
+<h3 id="2-the-contested-decisions"><a class="doc-anchor" href="#2-the-contested-decisions">§</a>2. The contested decisions</h3>
+<p>Six independent designs produced four graph traits (three of them named
+<code>GraphRef</code>), three view mechanisms, three edge descriptors, five property-map
+types, four branding schemes and two index widths. Both judges concluded the
+set was not implementable as a merge. These are the resolutions, each with the
+evidence that decided it.</p>
+<h4 id="d1--the-graph-trait-is-not-gat-based"><a class="doc-anchor" href="#d1--the-graph-trait-is-not-gat-based">§</a>D1 — The graph trait is <strong>not</strong> GAT-based</h4>
+<p><strong>Decided:</strong> <code>trait GraphRef: GraphBase + HasDir</code> with plain associated types,
+implemented on <code>&amp;'g AdjList</code> and on view <em>values</em>, every method taking <code>self</code>
+by value.</p>
+<p><strong>Rejected:</strong> <code>trait Incidence { type OutEdges&lt;'a&gt; where Self: 'a; fn out_edges(&amp;self, v) -&gt; Self::OutEdges&lt;'_&gt; }</code>.</p>
+<p>The GAT form fails three ways, each fatal to a different part of the port:</p>
+<ul>
+<li><code>&amp;dyn Incidence</code> is <code>error[E0038]: the trait is not dyn compatible because it contains generic associated type OutEdges</code>. graph-tool’s whole Python
+boundary is runtime dispatch over graph kinds. It cannot be built on that
+trait.</li>
+<li><code>where for&lt;'a&gt; G::OutEdges&lt;'a&gt;: Send</code> — the bound rayon needs — is accepted
+for an owned graph and rejected for any <em>borrowing view</em> with
+<code>error[E0597]</code> and rustc’s own note that the GAT’s implicit <code>where Self: 'a</code>
+“implies a <code>'static</code> lifetime”. So <code>Und(&amp;g)</code> could never reach a parallel
+loop.</li>
+<li>The usual escape, a refinement trait
+<code>trait SizedIncidence: Incidence where for&lt;'a&gt; Self::OutEdges&lt;'a&gt;: ExactSizeIterator</code>,
+is well-formed and unimplementable for any borrowing wrapper
+(<code>error[E0477]</code>). So the filtered-view question would have <em>no</em> answer.</li>
+</ul>
+<p>Putting the lifetime on the implementing type costs nothing: <code>Self::Out</code> is
+still <code>OutEdges&lt;'g&gt;</code>, <code>fold</code> still forwards to <code>slice::Iter::fold</code>, and views
+are one machine word (verified: <code>size_of::&lt;Und&lt;&amp;AdjList&gt;&gt;() == 8</code>).</p>
+<h4 id="d2--incidence-is-anchored-identity-is-edgeid-and-nothing-else"><a class="doc-anchor" href="#d2--incidence-is-anchored-identity-is-edgeid-and-nothing-else">§</a>D2 — Incidence is <strong>anchored</strong>; identity is <code>EdgeId</code> and nothing else</h4>
+<p><strong>Decided:</strong> two descriptor types.</p>
+<ul>
+<li><code>Incident { other: VertexId, edge: EdgeId }</code>, yielded by <code>out_edges</code>,
+<code>in_edges</code>, <code>all_edges</code>. <code>other</code> is <strong>always the neighbour</strong>.</li>
+<li><code>EdgeRef { id, src, tgt }</code>, yielded by <code>edges()</code> and <code>find_edge</code>, in
+canonical storage orientation.</li>
+</ul>
+<p>Neither implements <code>PartialEq</code> or <code>Hash</code>. Verified: <code>a == b</code> on two <code>EdgeRef</code>s
+is <code>error[E0369]</code>, and <code>HashSet&lt;EdgeRef&gt;::insert</code> is <code>error[E0599]</code>. Identity
+goes through <code>.id()</code> or <code>From</code>.</p>
+<p><strong>Why anchored.</strong> Two of the six designs got undirected traversal silently
+wrong, in opposite directions, and both misread the same C++. The ground truth:</p>
+<div class="example-wrap"><pre class="language-c++"><code>// graph_adaptor.hh:199-207
+out_edges(u, undirected_adaptor&lt;Graph&gt;&amp; g) { return _all_edges_out(u, g.original_graph()); }
+// graph_adjacency.hh:1102-1108   — note the iterator type
+_all_edges_out(Vertex v, const adj_list&lt;Vertex&gt;&amp; g) {
+    typedef typename adj_list&lt;Vertex&gt;::out_edge_iterator ei_t;   // OUT, not ALL
+    return {ei_t(v, es.begin()), ei_t(v, es.end())};             // the WHOLE block
+}
+// graph_adjacency.hh:298-306
+struct make_out_edge { static edge_descriptor def(vertex_t src, const pair&amp; v, Iter&amp;&amp;)
+    { return edge_descriptor(src, v.first, v.second); } };       // src == u, always</code></pre></div>
+<p>So graph-tool’s undirected view <strong>normalises</strong>: <code>src == u</code> for the in-half too,
+and the <code>std::swap</code> at <code>graph_adaptor.hh:161</code> exists to make <code>edge(u,v,g)</code>
+<em>agree</em> with that. The view is self-consistent; what one design mistook for an
+inconsistency was <code>all_edges(v, g)</code> on a <em>directed</em> <code>adj_list</code>, a different
+function.</p>
+<p>A symmetric <code>{src, tgt, idx}</code> POD cannot record “stored 2→1, traversed from 1”.
+<code>Incident</code> does not have to: the field is named <code>other</code> and there is no second
+interpretation. This also makes the filtering adaptors cheaper — <code>FilterIncident</code>
+needs only the iterator and the filter, never the graph, because the
+neighbour is already in hand.</p>
+<p><strong>Why no <code>Eq</code>.</strong> <code>operator==</code> on <code>adj_edge_descriptor</code> compares <code>idx</code> <strong>only</strong>
+(<code>:196</code>) and <code>hash</code> is <code>e.idx</code> (<code>:1618</code>), so <code>unordered_set&lt;edge_descriptor&gt;</code>
+dedupes correctly — which undirected algorithms rely on. One design “fixed”
+this by deriving equality over all three fields, which silently changes results
+for every such set. Refusing to implement <code>Eq</code> at all makes the port of that
+code a compile error that points at the right line.</p>
+<h4 id="d3--views-are-composed-newtypes-with-normalising-constructors"><a class="doc-anchor" href="#d3--views-are-composed-newtypes-with-normalising-constructors">§</a>D3 — Views are composed newtypes with <strong>normalising constructors</strong></h4>
+<p><strong>Decided:</strong> <code>Und&lt;G&gt;</code> and <code>Rev&lt;G&gt;</code>, <code>#[repr(transparent)]</code>, <strong>private fields</strong>,
+reachable only through <code>Undirect::undirect</code> and <code>Reverse::reverse</code>, whose impls
+make <code>undirect</code> idempotent and absorbing and <code>reverse</code> an involution. Filtering
+is a <strong>type parameter</strong> <code>Filtered&lt;G, F: Filter&gt;</code> with a <code>KeepAll</code> ZST.</p>
+<p><strong>Rejected:</strong> flattening all six into
+<code>GraphView&lt;'g, const D: bool, const R: bool, const F: bool&gt;</code>.</p>
+<p>Const-folding is real — one judge measured 27 vs 45 instructions for the
+unfiltered and filtered arms of the flattened form. But flattening is also
+exactly what throws away the orientation information that
+<code>undirected_adaptor::source/target</code> carries, and the design that shipped it had
+four of six views semantically wrong (reversed yielding base-out ∪ base-in
+where <code>graph_reverse.hh:78-80</code> swaps the iterator typedefs and means base-in
+<em>only</em>). Composed wrappers plus an anchored <code>Incident</code> keep the orientation and
+get the same monomorphisation, because <code>Und&lt;G&gt;::Out = G::All</code> is resolved at
+the type level exactly as a const parameter would be.</p>
+<p>Verified, by <code>std::any::type_name</code> on a real build:</p>
+<div class="example-wrap"><pre class="language-text"><code>d.reverse().reverse()   = &amp;AdjList                  (involution)
+d.reverse().undirect()  = Und&lt;&amp;AdjList&gt;             (absorbing, not Und&lt;Rev&lt;_&gt;&gt;)
+d.undirect().undirect() = Und&lt;&amp;AdjList&gt;             (idempotent)
+Rev&lt;Und&lt;&amp;AdjList&gt;&gt;      = error[E0271]: type mismatch resolving
+                          &lt;Und&lt;&amp;AdjList&gt; as HasDir&gt;::Dir == Directed</code></pre></div>
+<p>This is <strong>stronger</strong> than <code>graph_filtering.hh</code>. C++ drops the impossible corner
+with a <code>hana::filter</code> (<code>:112-118</code>) and de-duplicates the rest with
+<code>hana::to&lt;set_tag&gt;</code> (<code>:127</code>); the struct bound alone kills only the filtered
+case, and the <em>duplicates</em> — <code>Und&lt;Und&lt;_&gt;&gt;</code>, <code>Rev&lt;Rev&lt;_&gt;&gt;</code> and the tower above
+them — are what normalising constructors close. Private fields are what make
+that closure real: <code>Undirected&lt;G&gt;(pub G)</code> would let <code>u.0.in_edges(v)</code> compile
+and defeat the <code>Bidirectional</code> separation entirely.</p>
+<p><strong>Why a type parameter for filtering, not a const generic or a runtime
+predicate.</strong> A const generic erases no <em>data</em>, so the mask fields would exist
+in the unfiltered arm and need dummy values; a runtime <code>&amp;dyn Fn</code> gives one
+instantiation instead of six — a real compile-time win — at the cost of an
+unspeculatable indirect call in the inner loop. Type parameter with a ZST for
+“off” gives the same six as C++ with neither cost. (Corroboration: the design
+that chose the const-generic form shipped a <code>vmask</code> field that was <strong>read
+nowhere</strong>, so every filtered measurement it reported was of a no-op.)</p>
+<h4 id="d4--directedness-is-split-dir-and-hasdir"><a class="doc-anchor" href="#d4--directedness-is-split-dir-and-hasdir">§</a>D4 — Directedness is split: <code>Dir</code> <em>and</em> <code>HasDir</code></h4>
+<p><code>trait Dir { const DIRECTED: bool; const N_FIELDS: usize; }</code> carries the
+type-level directedness <strong>and its field set</strong> — which is what lets an
+undirected SBM delta buffer hold two adjacency half-field vectors instead of
+four, rather than four empty ones.</p>
+<p><code>trait HasDir { type Dir: Dir }</code> is separate so that non-<code>Copy</code> <strong>owners</strong> can
+carry directedness. <code>Arc&lt;AdjList&gt;: HasDir</code> is what makes
+<code>Und&lt;Arc&lt;AdjList&gt;&gt;</code> — the safe replacement for
+<code>std::reinterpret_pointer_cast&lt;ug_t&gt;(u)</code> (<code>graph_filtering.cc:92</code>) — expressible
+at all. Verified: <code>size_of::&lt;Und&lt;Arc&lt;AdjList&gt;&gt;&gt;() == size_of::&lt;Arc&lt;AdjList&gt;&gt;() == 8</code>,
+the same layout the cast produces, obtained by a move.</p>
+<p><code>Field&lt;D&gt;</code> replaces the <code>InFields for ()</code> trait one design used, whose <code>slot()</code>
+was an <code>unreachable!()</code> in safe code, unreachable only because every caller
+branched on <code>D::DIRECTED</code> first — an invariant stated in a comment and nowhere
+in a type. That is the same species of defect as the <code>_dummy</code> fallthrough it
+was meant to fix.</p>
+<h4 id="d5--index-width-is-a-crate-wide-alias-not-a-type-parameter"><a class="doc-anchor" href="#d5--index-width-is-a-crate-wide-alias-not-a-type-parameter">§</a>D5 — Index width is a crate-wide <strong>alias</strong>, not a type parameter</h4>
+<p><code>pub type Raw = u32;</code> (<code>u64</code> under <code>wide-index</code>). <code>Id&lt;T: IdTag&gt;</code> is a
+newtype over it.</p>
+<p>The designs disagreed: one made <code>I: RawId</code> a parameter defaulted to <code>u32</code> and
+built its whole cache-line argument on it; one used <code>usize</code>; one used <code>u32</code>.
+The parameter version is worse than either fixed choice, because it multiplies
+every generic algorithm in the port by two for a capability nobody has asked
+for. Making it an alias removes an entire monomorphisation axis from every
+signature and still leaves <code>u64</code> reachable by a whole-build flag.</p>
+<p>The width itself: verified <code>size_of::&lt;AdjEntry&gt;() == 8</code>, against 16 for
+<code>adj_list&lt;size_t&gt;</code>’s <code>pair&lt;vertex_t, vertex_t&gt;</code> — eight entries per 64-byte
+line against four, on the memory stream that dominates BFS, triangle counting
+and SBM neighbour sweeps. Ceiling 4.29 × 10⁹ vertices.</p>
+<p>Note graph-tool already has <em>two</em> widths and asserts neither: <code>_epos</code> is
+<code>vector&lt;pair&lt;uint32_t,uint32_t&gt;&gt;</code> (<code>graph_adjacency.hh:620</code>) beneath a <code>size_t</code>
+vertex. Here positions are <code>Raw</code> too, so that cannot recur — a claim one design
+made in its rationale and contradicted six lines later in its own code.</p>
+<h4 id="d6--the-kernel-facing-property-map-is-a-trait"><a class="doc-anchor" href="#d6--the-kernel-facing-property-map-is-a-trait">§</a>D6 — The kernel-facing property map is a <strong>trait</strong></h4>
+<p><code>trait ReadProp&lt;K: IdTag&gt;</code> with <code>type Ref&lt;'s&gt;: Deref&lt;Target = Self::Value&gt;</code>.
+Implementations: <code>DenseProp</code> (owns a <code>Vec</code>), <code>PropSlice</code>/<code>PropSliceMut</code>
+(views), <code>IndexProp</code> (<strong>no storage</strong>), <code>Unity</code> (ZST), <code>Constant</code>, <code>ConstI64</code>.</p>
+<p>This is not stylistic. <code>vertex_index_map_t</code> and <code>edge_index_map_t</code> are
+<code>hana::append</code>ed to every non-<code>writable_</code> property axis:</p>
+<div class="example-wrap"><pre class="language-c++"><code>// graph_properties.hh:166-180
+inline constexpr auto vertex_properties =
+    hana::append(get_vprop_types(value_types), hana::type&lt;vertex_index_map_t&gt;());
+inline constexpr auto scalar_vertex_properties =
+    hana::append(get_vprop_types(scalar_types), hana::type&lt;vertex_index_map_t&gt;());</code></pre></div>
+<p>Those axis names appear in roughly three quarters of the 324 dispatch call
+sites. <code>vertex_index_map_t</code> is a <em>storage-free identity map</em>: it has no vector
+and no slice. <strong>All five property-map designs proposed by the source lenses
+model a map as an owned <code>Vec&lt;T&gt;</code> or an <code>&amp;mut [T]</code>, so none of them can
+represent the most common argument the dispatcher passes.</strong> Only a trait can.</p>
+<p>Reads return <code>Self::Ref&lt;'s&gt;: Deref</code>, not <code>Self::Value</code>. Returning by value
+costs a heap allocation, a <code>memcpy</code> and two deallocations per element for
+<code>String</code> and the seven vector members — nine of the fifteen — which is exactly
+the inner loop of <code>graph_properties_copy.hh:62</code>, where the C++
+<code>pm[k] = src_ref</code> reuses the target’s capacity and allocates nothing.</p>
+<h4 id="d7--the-value-universe-no-default-no-send-no-sync-on-the-base-trait"><a class="doc-anchor" href="#d7--the-value-universe-no-default-no-send-no-sync-on-the-base-trait">§</a>D7 — The value universe: no <code>Default</code>, no <code>Send</code>, no <code>Sync</code> on the base trait</h4>
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">pub trait </span>PropValue: sealed::Sealed + <span class="lifetime">'static </span>{ <span class="kw">const </span>KIND: ValueKind; <span class="kw">type </span>Elem: PropValue; }
+<span class="kw">pub trait </span>Zeroed:  PropValue { <span class="kw">fn </span>zero() -&gt; <span class="self">Self</span>; }      <span class="comment">// the 14 non-Python members
+</span><span class="kw">pub trait </span>GilFree: PropValue + Clone + Send + Sync {}    <span class="comment">// the 14 again, as a marker
+</span><span class="kw">pub trait </span>ToF64:   Copy      { <span class="kw">fn </span>to_f64(<span class="self">self</span>) -&gt; f64; }
+<span class="kw">pub trait </span>Scalar:  PropValue + GilFree + Copy + ToF64 + PartialOrd {}</code></pre></div>
+<p>Two source designs wrote
+<code>PropValue: Sealed + Default + Send + Sync + 'static</code>. Both bounds are wrong:</p>
+<ul>
+<li><strong><code>Default</code></strong> is unimplementable for the 15th member. pyo3 has no
+<code>impl Default for Py&lt;T&gt;</code>; the default <code>python::object</code> is <code>Py_None</code>, which
+needs a live interpreter and an incref. So <code>data.resize_with(n, T::default)</code>
+— the body of the central sizing chokepoint — cannot exist for it. Growth
+here takes a <code>FnMut() -&gt; T</code> closure (<code>sized_for_with</code>), which the PyO3
+boundary fills by capturing its token; <code>sized_for</code> is the <code>Zeroed</code>
+convenience.</li>
+<li><strong><code>Send + Sync</code></strong> is precisely what defeats the GIL guarantee, because rayon
+checks <code>Send</code>, not a positive marker. With them on the base trait,
+<code>store.as_mut_slice().par_iter_mut()</code> over a Python-valued map compiles with
+no <code>unsafe</code> and no diagnostic.</li>
+</ul>
+<p><code>long double</code> and <code>vector&lt;long double&gt;</code> are carried as <code>LongDouble([u8; 16])</code>,
+opaque, with <strong>no arithmetic</strong>. <code>.gt</code> files and <code>PropertyMap.value_type()</code>
+round-trip unchanged, and the <code>Scalar</code> bound excludes the type from every
+arithmetic kernel at compile time. Three designs called this a dead end; it is
+a one-variant decision, and it is what the subset-bound mechanism is for.</p>
+<p><code>ToF64</code> rather than <code>Into&lt;f64&gt;</code>: there is <strong>no</strong> <code>impl From&lt;i64&gt; for f64</code> (it is
+lossy), and <code>int64_t</code> is graph-tool’s most-used scalar property type. A design
+bounded on <code>Into&lt;f64&gt;</code> ships a “scalar” axis with <code>i64</code> silently missing.</p>
+<h4 id="d8--layering-the-default-body-rule-and-the-sampler-returns-its-own-density"><a class="doc-anchor" href="#d8--layering-the-default-body-rule-and-the-sampler-returns-its-own-density">§</a>D8 — Layering: the default-body rule, and the sampler returns its own density</h4>
+<blockquote>
+<p><strong>A trait method may carry a default body only if that body is either a pure
+no-op or derivable from other <em>required</em> methods of the same trait.</strong> A
+default that encodes policy is not a default; it is a required method.</p>
+</blockquote>
+<p>graph-tool’s <code>SpecBase::Imp</code> (<code>spec_base.hh:58-130</code>) <code>= delete</code>s three members
+and defaults fourteen with <em>working</em> bodies, so a misnamed deleted member is a
+compile error and a misnamed defaulted one silently inherits. Confirmed live
+bug: <code>potts/spec.hh:113-117</code> overrides the proposal with
+<code>uniform_int_distribution&lt;group_t&gt; sample(0, _q-1)</code>, then <code>:124</code> defines
+<code>get_move_lprob</code>. <code>grep -rn get_move_lprob src/</code> finds that one line, called
+from nowhere. The loop calls <code>get_move_prob</code> (<code>base/mcmc.hh:123-124</code>), which
+Potts does not define, so it inherits <code>spec_base.hh:88-109</code> —
+<code>log(1. - d) - safelog_fast(B)</code>, the density of the <em>base’s</em> sampler. The
+Hastings ratio does not correspond to the kernel being sampled.</p>
+<p><strong>A second instance, one layer up, not previously reported:</strong>
+<code>loops/mcmc_loop.hh:60</code> declares <code>constexpr bool is_determinisitic()</code> —
+misspelled — while the loop calls <code>is_deterministic()</code> at <code>:121</code> and <code>:196</code>.
+The default is dead. It survives only because every concrete state happens to
+define the correct spelling.</p>
+<p>The rule alone would make both a compile error. This port goes further:
+<code>GroupProposal::propose</code> <strong>returns <code>Proposal { to, log_fwd }</code></strong>, so there is no
+second place for the forward density to live. Requiring a <code>log_move_prob</code>
+method merely makes <em>misnaming</em> fatal; returning the density from the sampler
+means a copy-pasted density in the same <code>impl</code> block cannot silently disagree
+with a hand-written sampler. (One judge compiled exactly that: a correct
+uniform sampler plus a pasted base density, in one impl block, giving a
+Hastings ratio of −1.505 where the answer is 0.)</p>
+<p>Capabilities are <strong>trait presence</strong>: <code>Mergeable</code>, <code>ParallelMove</code>,
+<code>Checkpointed</code>. That deletes the duplicated <code>has_merge</code> (<code>spec_base.hh:50</code>) /
+<code>_has_merge</code> (<code>:115</code>, and again at <code>merge_split.hh:99</code>, <code>multilevel.hh:114</code>) —
+two independent booleans for one capability, at two scopes, which a derived
+spec can set inconsistently.</p>
+<p><code>MoveScore { d_entropy, log_hastings }</code> replaces <code>std::tuple&lt;double,double&gt;</code>
+destructured positionally at <code>mcmc_loop.hh:174</code>. <code>Step { mv, nsteps }</code> replaces
+the <code>constexpr</code> return-type probe at <code>:112-118</code> — without it, merge-split
+(<code>merge_split.hh:1201-1203</code> returns <code>tuple&lt;size_t,size_t&gt;</code>), multiflip and
+multilevel cannot implement the trait at all.</p>
+<h4 id="d9--concurrency-a-scratch-type-row-locks-and-a-builder"><a class="doc-anchor" href="#d9--concurrency-a-scratch-type-row-locks-and-a-builder">§</a>D9 — Concurrency: a scratch type, row locks, and a builder</h4>
+<p>Three source designs independently removed graph-tool’s concurrent mutation and
+<strong>each scored the removal as a win</strong>. It is a removed capability:
+<code>blockmodel/state.hh:152</code> builds <code>_group_mutex</code>, <code>:343-348</code> takes ordered pair
+row locks, <code>:451</code> sizes <code>_m_entries_pool</code> to <code>get_num_threads()</code>.</p>
+<p>Resolution, in three parts:</p>
+<ol>
+<li><strong><code>SpecCore::Scratch</code>.</strong> <code>virtual_move(&amp;self, ...)</code> cannot be implemented as
+written: <code>blockmodel/state.hh:304</code> is
+<code>get_move_entries(v, r, nr, _m_entries); move_vertex(v, r, nr, _m_entries);</code>
+— <code>virtual_move</code> <strong>mutates</strong> a reusable scratch <code>EntrySet</code>, and every one of
+those C++ members is non-const. <code>&amp;self</code> plus the <code>Sync</code> supertrait leaves
+only three options, all bad: allocate per Metropolis step (on the hottest
+path in the library); use a <code>thread_local</code> (reintroducing exactly the
+thread-keyed hidden global that <code>parallel_rng.hh:56-73</code> is condemned for,
+and destroying reproducibility); or take <code>&amp;mut self</code> (deleting the lock-free
+proposal phase the whole four-phase argument rests on). Threading
+<code>&amp;mut Self::Scratch</code> is the fourth, and it makes
+<code>_m_entries_pool.resize(get_num_threads())</code> an explicit per-chunk value.</li>
+<li><strong><code>BlockCommitShared</code> + <code>GroupLocks</code>.</strong> Shared <code>&amp;self</code>, <code>Box&lt;[Mutex&lt;_&gt;]&gt;</code>
+taken in <code>(min, max)</code> order. What Rust adds is not a prohibition but the
+enforcement <code>partition.hh:78-84</code> lacks, where <code>_count[r] += w</code> sits between
+two <code>#pragma omp atomic</code> statements and is correct only if every caller
+holds <code>_group_mutex[r]</code>.</li>
+<li><strong><code>ParBuilder</code></strong> for bulk construction, replacing <code>set_concurrent(true)</code>
+(<code>graph_adjacency.hh:451</code>) + per-thread <code>_free_idx_m</code> (<code>:613</code>). Edge ids are
+assigned by a deterministic merge in chunk order, so they do not depend on
+the thread count — which graph-tool’s per-thread free lists explicitly do.</li>
+</ol>
+<p>An “owner-computes” scheme with no locks was proposed and is <strong>provably wrong
+for the block graph</strong>: <code>entries.hh:391-398</code> writes <code>_mrs[me]</code>, <code>_mrp[r]</code> <em>and</em>
+<code>_mrm[s]</code> from one delta, so no partition by group makes every counter
+single-owner.</p>
+<p><code>pair_mut</code> returns <code>Option&lt;Pair&lt;'_, T&gt;&gt;</code> with <code>Two(&amp;mut, &amp;mut)</code> <strong>in caller
+order</strong> and <code>Same(&amp;mut)</code>. A version returning <code>[&amp;mut T; 2]</code> sorted by index
+silently transposes — <code>pair_mut(xs, 3, 1)</code> hands back <code>[&amp;mut xs[1], &amp;mut xs[3]]</code>
+— which is the same class of defect <code>MoveScore</code>’s named fields exist to
+prevent, and graph-tool does <em>not</em> have it (<code>do_ulock_pair</code> sorts only for
+<code>std::lock</code>, and the caller keeps <code>r</code> and <code>s</code> by name). <code>Same</code> exists because
+<code>r == s</code> is the block-graph self-loop <code>_mrs[r][r]</code>, not an error case.</p>
+<h4 id="d10--the-sbm-lifecycle-the-level-is-the-unit-of-consumption"><a class="doc-anchor" href="#d10--the-sbm-lifecycle-the-level-is-the-unit-of-consumption">§</a>D10 — The SBM lifecycle: the <em>level</em> is the unit of consumption</h4><div class="example-wrap"><pre class="language-text"><code>Recording&lt;&#39;w&gt;  --seal()--&gt;  Transition&lt;&#39;w&gt;  --into_levels()--&gt;  Applied&lt;&#39;w&gt; (per level)
+                                |                                     |
+                                +-- level(l) -&gt; Delta&lt;&#39;a&gt; (Copy)       +-- commit -&gt; Receipt</code></pre></div>
+<p><code>Transition</code> and <code>Applied</code> are <code>!Clone</code>; <code>commit</code> takes <code>Applied</code> <strong>by value</strong>,
+so replaying a level twice is a move error where <code>apply_delta</code>
+(<code>entries.hh:429</code>) has no such notion and double-counts every entry if
+re-entered.</p>
+<p><strong>Why per level and not per transition.</strong> Taking the whole <code>Transition</code> by value
+makes two things impossible that the design claims to support. The always-on
+audit cannot be called (after <code>commit</code> the value has moved, <code>error[E0382]</code>; and
+before <code>commit</code> the audit fails by construction on every non-zero delta). And
+the <strong>nested block model cannot be committed at all</strong>: <code>apply_delta</code> must
+recurse into the coupled state with <code>*m_entries._next</code> (<code>:488</code>) — level <em>l</em>
+goes to state <em>l</em> — and there is only one value to give away. <code>Receipt</code> carries
+the before-image past the commit so the audit compiles.</p>
+<p><code>Stamp { state: StateId, epoch: Epoch }</code>, not a bare epoch. A revision counter
+does not identify a state: two freshly built states both sit at epoch 0, so a
+transition recorded against one commits silently into the other and the guard
+never fires. One extra <code>u64</code> comparison per commit.</p>
+<p><strong>The ownership inversion is what dissolves the borrow conflict</strong>, and the
+before-image is <em>not</em>. Three readers are three shared borrows and never
+conflicted with each other; the conflict is that the buffer is a member of the
+state (<code>state.hh:2545</code>), so <code>this-&gt;entries_dS(..., this-&gt;_m_entries)</code> has
+<code>&amp;mut self</code> aliasing <code>&amp;mut self._m_entries</code>. Moving the buffer into a
+caller-owned <code>Workspace</code> removes it, full stop.</p>
+<p>The before-image is kept for a different and honest reason: it removes two
+cache-cold dependent loads per entry from the pricing loop — the <code>_emat</code> hash
+probe and the <code>_mrs[me]</code> indirection at <code>state.hh:1225</code> — turning <code>entries_dS</code>
+into a contiguous scan over <code>&amp;[Entry&lt;W&gt;]</code>. That is the best single performance
+idea in this port, and a judge verified it prices 269/269 random moves exactly
+against a from-scratch entropy. It is also <strong>sufficient only for the sparse
+model</strong>: the dense branch (<code>state.hh:1145-1219</code>) sweeps <code>out_edges_range(t, _bg)</code>
+and genuinely needs the state. Both signatures exist and say which is which.</p>
+<h4 id="d11--no-branded-index-unsafe-at-all"><a class="doc-anchor" href="#d11--no-branded-index-unsafe-at-all">§</a>D11 — No branded-index <code>unsafe</code>. At all.</h4>
+<p>Three designs proposed a generative-lifetime branding layer
+(<code>scope(|Domain&lt;'id&gt;| ...)</code>, <code>BEdgeId&lt;'id&gt;</code>, <code>get_unchecked</code>) to elide bounds
+checks. It is dropped. Three reasons, in order of weight:</p>
+<ol>
+<li><strong>The one that shipped was unsound.</strong> Its <code>brand_edge</code> was a <em>safe</em> function
+taking a provenance-free <code>Copy</code> descriptor from any graph, bound-checked
+only under <code>debug_assert!</code>, feeding <code>get_unchecked</code>. A judge got a SIGSEGV
+out of it from safe code in a release build.</li>
+<li><strong>It does not pay on the shape that matters.</strong> Measured: on a contiguous
+scan the branded form saves one <code>cmp</code>/<code>jae</code> per element (17 → 10
+instructions) with no unrolling and no vectorisation — low single digits,
+not the claimed 2–4×. On the <em>re-entry</em> shape that actually dominates graph
+kernels (<code>_b[source(e, g)]</code>, an index read out of one map and used in
+another) it was measured at <strong>26 instructions against 17</strong> for plain safe
+indexing: a net pessimisation.</li>
+<li><strong>The zero-unsafe path recovers most of it anyway.</strong> <code>DenseProp::as_slice</code>
+and <code>PropSliceMut::as_mut_slice</code> hand out <code>&amp;[T]</code> / <code>&amp;mut [T]</code>, and an
+iterator over a slice carries its own length, so LLVM removes the check that
+indexing cannot. No <code>unsafe</code>, no brand, no viral <code>'id</code> in every signature,
+no <code>#[pyclass]</code> problem.</li>
+</ol>
+<p>Cross-graph confusion is caught instead by a <strong>runtime <code>GraphId</code> comparison at
+kernel entry</strong> — one compare per kernel, not per access. <code>Bound&lt;K&gt;</code> and
+<code>DenseProp&lt;T, K&gt;</code> both carry a <code>GraphId</code>, and <code>sized_for</code> returns
+<code>Err(PropError::WrongGraph)</code>. That is cheaper than a brand, catches the case
+the brand was <em>actually</em> needed for (<code>copy_property</code>), and costs no ergonomics.</p>
+<h4 id="d12--remove_edge-takes-an-edgeid-and-the-slot-table-is-unconditional"><a class="doc-anchor" href="#d12--remove_edge-takes-an-edgeid-and-the-slot-table-is-unconditional">§</a>D12 — <code>remove_edge</code> takes an <code>EdgeId</code>, and the slot table is unconditional</h4>
+<p><code>EdgeSlot { src, tgt, out_pos, in_pos }</code> — 16 bytes, verified — so
+<code>endpoints(e)</code> and <code>remove_edge(e)</code> are O(1) and there is <strong>no caller-supplied
+orientation left to be wrong</strong>.</p>
+<p>This answers, affirmatively, the open question one design left: should the
+non-slot configuration ship? No. graph-tool makes <code>_epos</code> a runtime flag
+(<code>_keep_epos</code>, <code>:617</code>) and then writes <code>clear_vertex</code> <strong>twice</strong>, once per
+setting (<code>:1343-1414</code> and <code>:1416-1434</code>) — and only one of the two is wrong.
+With one configuration there is one algorithm.</p>
+<p>It also retires the <code>reverse_edge</code>/<code>remove_edge</code> interaction entirely rather
+than guarding it. A design that kept a positions-only slot table and accepted a
+descriptor had <code>remove_edge(e.reversed())</code> — using its own advertised
+replacement for <code>graph_adjacency.hh:571</code> — panic via <code>out_len - 1</code> wrapping to
+<code>usize::MAX</code>, with its two configurations disagreeing about whether the input
+was even valid.</p>
+<hr />
+<h3 id="3-storage"><a class="doc-anchor" href="#3-storage">§</a>3. Storage</h3>
+<p><code>AdjList&lt;H: Lookup = NoLookup&gt;</code>: <code>Vec&lt;Block&gt;</code>, <code>EdgeIds</code>, <code>EdgeSlots</code>, the
+lookup, a <code>GraphId</code>, and a reusable <code>Vec&lt;EdgeId&gt;</code> scratch.</p>
+<p><strong><code>Block</code> is 32 bytes</strong> (verified), matching graph-tool’s
+<code>pair&lt;size_t, vector&lt;pair&lt;size_t,size_t&gt;&gt;&gt;</code> vertex record exactly, with no
+malloc for an isolated vertex (<code>Vec::new()</code> does not allocate). An inline
+small-vector buffer was measured at <strong>48 bytes</strong> — a 50% larger vertex array,
+streamed by every <code>for v in vertices { for e in out_edges(v) }</code> kernel — and
+was rejected: it helps low-degree vertices, which are not the ones carrying the
+edge traffic.</p>
+<p><code>add_edge</code> is <strong>O(1)</strong>, by the trick at <code>graph_adjacency.hh:1192-1215</code>:</p>
+<div class="example-wrap"><pre class="language-c++"><code>if (s_pos &lt; s_es.size()) {           // in-list is not empty
+    s_es.push_back(s_es[s_pos]);     // push the first in-edge to the back
+    s_es[s_pos] = {t, idx};          // overwrite its slot
+}</code></pre></div>
+<p>One source design transliterated the surrounding code and replaced this with
+<code>es.insert(split, e)</code>, which is O(in-degree). A judge measured it quadratic:
+20.8 / 51.6 / 207.6 / 876.3 ms for 10k / 20k / 40k / 80k insertions on a hub.
+On the high-in-degree hubs this library exists to analyse, that is the
+difference between a port and a regression.</p>
+<p>Mutation is exactly two private primitives, <code>splice_in</code> and <code>splice_out</code>, and
+every relocation is reported as a <code>Moved</code> <strong>value</strong> — so the <code>&amp;mut Block</code>
+borrow ends before the index hooks run, which is what forces the correct
+ordering in <code>splice_out</code> and what graph-tool has to remember by hand
+(<code>:1243-1249</code> binds <code>s_es</code> and <code>t_es</code> as two references that alias whenever
+<code>s == t</code>).</p>
+<p><code>num_edges()</code> is <code>EdgeIds::live()</code>, derived, never accumulated by caller
+arithmetic. <code>clear_vertex_where</code> is one loop over <code>remove_edge</code>, filling the
+reusable scratch — no per-call <code>Vec</code>, which a judge measured at 2–4 allocations
+per call in the design that used one.</p>
+<hr />
+<h3 id="4-views"><a class="doc-anchor" href="#4-views">§</a>4. Views</h3>
+<p>Six types, closed by construction (D3). <code>Filtered::new</code> memoises both honest
+counts from <code>EdgeList::edges</code> and <code>VertexList::vertices</code> using the <strong>same</strong>
+predicate the iterators use, so <code>num_edges() == edges().count()</code> holds.</p>
+<p>Degree-summation cannot define <code>num_edges</code> on an undirected view: it
+double-counts, and mixing an out-edge predicate with an edge predicate makes
+the count and the iteration disagree. (One design reported 3 where the answer
+was 1, and 2 vs 4 even with the trivial filter.) That is why <code>EdgeList</code> is a
+bound on <code>Filtered::new</code> and why <code>edges()</code> is on the trait at all.</p>
+<p><code>Filtered::masked</code> validates the masks against <strong>this graph’s own bounds</strong>, so
+validation and use are one statement. A free-standing
+<code>MaskFilter::new(vmask, emask, vb, eb)</code> is <code>Copy</code> and remembers nothing: a mask
+admitted for a 3-vertex graph is silently accepted by a 10-vertex one and
+panics on first probe — the same structural defect as
+<code>graph_filtering.cc:42-46</code> reserving separately from <code>MaskFilter::operator()</code>.</p>
+<p><code>ExactIncidence</code> is the refinement unfiltered views implement and filtered ones
+do not. <code>GraphRef</code> itself does <strong>not</strong> require <code>ExactSizeIterator</code>: that bound
+excludes filtered graphs (<code>error[E0277]</code>) and, under a GAT trait, cannot even
+be added as a refinement (<code>error[E0477]</code>). This is the resolution of the one
+question a design explicitly left open.</p>
+<p>There is no <code>&amp;G → &amp;Und&lt;G&gt;</code> reference conversion. The <code>ref-cast</code> route was
+dropped: it needs a dependency, and the value it produces is not a graph unless
+<code>GraphRef</code> is also implemented for <code>&amp;Und&lt;AdjList&gt;</code> — which the design that
+proposed it never did, so its only use of its only dependency produced an inert
+value. <code>Und&lt;Arc&lt;AdjList&gt;&gt;</code> by move covers the <code>reinterpret_pointer_cast</code> case
+at the same layout.</p>
+<hr />
+<h3 id="5-property-maps-and-the-value-universe"><a class="doc-anchor" href="#5-property-maps-and-the-value-universe">§</a>5. Property maps and the value universe</h3>
+<p><code>DenseProp::sized_for(bound) -&gt; Result&lt;PropSliceMut, PropError&gt;</code> is the single
+chokepoint. Growth and view-creation are one operation, so an under-sized view
+is not a value that exists.</p>
+<p>What it replaces:</p>
+<div class="example-wrap"><pre class="language-c++"><code>// dispatch.hh:171-177      — note: no size argument
+static auto&amp; pmap(boost::checked_vector_property_map&lt;Type,IndexMap&gt;&amp; a)
+{ if constexpr (dargs.uncheck) return a.get_unchecked(); else return a; }
+// fast_vector_property_map.hh:108
+unchecked_t&amp; get_unchecked(size_t size = 0) { reserve(size); return reinterpret_cast&lt;unchecked_t&amp;&gt;(*this); }
+// :77    reserve only grows, so reserve(0) is a no-op
+// :218   unchecked operator[] has no bounds check</code></pre></div>
+<p>So every kernel behind <code>gt_dispatch</code> receives a raw indexed map whose length was
+never checked against the graph, and the only guarantee is nine lines of Python
+(<code>__init__.py:363-373</code>). That guarantee is already violated: <code>graph_copy.cc:66-73</code>
+reserves <code>num_vertices(src)</code> — the <em>filtered</em> count on a filtered view — and then
+writes at <code>index_map[v]</code>, <em>unfiltered</em> indices built at <code>:222</code>, while the Python
+guard at <code>__init__.py:3200</code> also compares filtered counts.</p>
+<p><code>view()</code> (shared) is fallible because <code>&amp;self</code> cannot grow. Note the consequence,
+which one judge caught and is worth stating: graph-tool’s checked map
+auto-grows on read (<code>:129</code>), so <code>g.vp.x[v]</code> on a never-written map returns the
+default. To preserve that, <strong>the dispatcher calls <code>sized_for</code> on read-only maps
+too</strong>. The two-phase reserve-then-hand-out does not disappear; it moves from
+Python into one place in Rust (<code>gt-py::module</code>), where forgetting it is
+impossible rather than merely unlikely.</p>
+<p>One consequence of that, found while wiring the boundary up and recorded here
+because it constrains every future entry point: sizing <em>cannot</em> be pushed down
+into the kernel. <code>DenseProp::sized_for</code> needs <code>T: Zeroed</code>, and none of the
+<code>value_subset!</code> axis traits — <code>Scalar</code>, <code>GilFree</code>, <code>PropValue</code> — implies it,
+precisely because <code>Zeroed</code> is the property the Python member lacks. So a kernel
+generic over its axis has no way to size its own map, and the sizing has to
+happen at the dispatched entry point while the concrete member is still in
+hand. An entry point that skips it hands its kernel
+<code>PropError::Undersized</code> on exactly the case this paragraph exists to
+preserve — a never-written map.</p>
+<p><code>Unity</code> is a true ZST (verified: 0 bytes, against 1 for the C++ empty class)
+and implements <code>ReadProp</code> <strong>only</strong>. <code>put(UnityPropertyMap, k, v) {}</code>
+(<code>graph_properties.hh:714</code>) is a silent no-op satisfying
+<code>writable_property_map_tag</code> at any of the 74 call sites; here the same call is
+<code>error[E0599]</code> (verified).</p>
+<p><code>Constant</code>’s field is <code>c</code> and it is <strong>public</strong> — which is what
+<code>graph_selectors.hh:109</code> and <code>:178</code> try to read on a class whose member is the
+private <code>_c</code> (<code>graph_properties.hh:677</code>). Both of those C++ overloads are
+uninstantiable dead code: graph-tool’s constant-weight fast path silently does
+not exist.</p>
+<p>Conversion uses a crate-local <code>ConvertFrom</code>, never <code>From</code>. <code>impl From&lt;Vec&lt;i32&gt;&gt; for Vec&lt;i64&gt;</code>
+and <code>impl From&lt;f64&gt; for i32</code> are both <code>error[E0117]</code> from <em>any</em> crate, and
+<code>value_convert.hh:135</code> handles vector-to-vector while <code>prop_map_as</code> narrows, so
+those are the common cases.</p>
+<hr />
+<h3 id="6-dispatch"><a class="doc-anchor" href="#6-dispatch">§</a>6. Dispatch</h3>
+<p><code>value_subset!</code> generates, <strong>from one token list</strong>: the member enum, the
+accepted-kind array, <code>narrow</code>, the kernel trait <em>with its bound</em>, and the
+exhaustive match that also performs the downcast. Two consequences, both
+verified:</p>
+<div class="example-wrap"><pre class="language-text"><code>// a member the kernel&#39;s bound cannot handle
+value_subset!(pub Bad2, Bad2Kernel, &quot;value&quot;, Scalar, { Str =&gt; String });
+  → error[E0277]: the trait bound `String: Scalar` is not satisfied
+
+// a transposed row
+value_subset!(pub Bad, BadKernel, &quot;value&quot;, Scalar, { I16 =&gt; i32, I32 =&gt; i16 });
+  → error[E0080]: evaluation panicked: value_subset! Bad: variant I16 is
+                  mapped to i32, whose KIND differs</code></pre></div>
+<p>The second matters more than it looks. Without the const assertion, <code>$v =&gt; $t</code>
+is an unchecked claim: transposing two rows compiles cleanly and produces a
+<em>runtime</em> <code>DispatchError</code> naming the <strong>wrong</strong> type as offered and listing it as
+accepted — strictly worse than <code>DispatchNotFound</code>, which at least prints
+honestly.</p>
+<p>Because the downcast happens inside the generated match,
+<strong><code>narrow</code> is the only fallible step</strong> and kernel bodies carry no second
+<code>Result</code>. Otherwise every one of the ~324 call sites reintroduces
+<code>DispatchNotFound</code> in its own body.</p>
+<p><code>AnyGraph::dispatch</code> is an exhaustive match over six <code>ViewKind</code>s with no
+catch-all: a seventh is <code>error[E0004]</code>.</p>
+<p><code>DynGraph</code> is the dyn-compatible face for the Python boundary — internal
+iteration, one indirect call per <strong>vertex</strong> rather than per edge. A GAT-based
+incidence trait makes this impossible outright (<code>error[E0038]</code>), which is the
+single strongest argument for D1.</p>
+<hr />
+<h3 id="7-the-python-boundary-and-the-gil"><a class="doc-anchor" href="#7-the-python-boundary-and-the-gil">§</a>7. The Python boundary and the GIL</h3>
+<p>The C++ defect, confirmed in all five copies
+(<code>graph_properties_copy.cc:35-42, :69-76, :104-111, :145-152</code>;
+<code>graph_properties_copy.hh:36-40</code>):</p>
+<div class="example-wrap"><pre class="language-c++"><code>bool is_python = (get_underlying_value_type(tgt) != typeid(boost::python::object) ||
+                  get_underlying_value_type(src) != typeid(boost::python::object));
+GILRelease gil(!is_python);
+bool parallel = (num_vertices(g) &gt; get_openmp_min_thresh() &amp;&amp; !is_python);</code></pre></div>
+<p>The connective is wrong and the sense is inverted. <code>object → object</code> gives
+<code>is_python == false</code>, so the GIL is <strong>released</strong> <em>and</em> the loop <strong>is</strong>
+parallelised: <code>Py_INCREF</code>/<code>Py_DECREF</code> across OpenMP threads with no GIL, in
+exactly the case that needs it most. And <code>int → int</code> gives the opposite
+pessimisation: the GIL held across a long serial loop.</p>
+<p>Why the author re-derived it by hand at all is structural:
+<code>gt_dispatch_args::gil_release</code> (<code>dispatch.hh:152</code>) is a single compile-time
+constant per call site, while the value type is chosen by a <em>runtime</em> <code>typeid</code>
+probe. One flag cannot say “release iff this leaf has no <code>python::object</code>”.</p>
+<p>Three mechanisms replace it, and it is worth being precise about which one
+carries the weight:</p>
+<ol>
+<li><strong>Nobody writes the predicate.</strong> <code>copy_prop</code>’s where-clause derives it as
+<code>&lt;S::Mode as Meet&lt;T::Mode&gt;&gt;::Out</code>, resolved per monomorphised leaf.</li>
+<li><strong>A wrongly edited lattice still fails.</strong> <code>Par</code>’s bounds (<code>S: Sync</code>,
+<code>T: Send</code>) are unsatisfiable for the Python member.</li>
+<li><strong><code>PyValue</code> is <code>!Send</code> by construction</strong> — <code>PhantomData&lt;*mut ()&gt;</code>. <em>This is
+the load-bearing one.</em> A positive marker trait guards only the functions
+that remember to require it, and <code>pyo3::Py&lt;T&gt;</code> is unconditionally
+<code>Send + Sync</code> (<code>pyo3-0.22.6/src/instance.rs:943-944</code>), with <code>Clone</code> and
+<code>Drop</code> both doing refcount work without a token. Verified:
+<code>Vec&lt;PyValue&gt;::par_iter_mut()</code> is
+<code>error[E0599]: ... trait bounds were not satisfied</code>.</li>
+</ol>
+<p>And the seal is what keeps (3) from being bypassed by a sibling newtype:
+<code>PropValue</code>’s <code>sealed::Sealed</code> is private to gt-core, and <code>PyValue</code> lives in
+gt-core, so <code>struct RawPy(Py&lt;PyAny&gt;)</code> in gt-py <strong>cannot be a property value at
+all</strong>. (One design had exactly that hole: <code>impl PropValue for RawPy { type Mode = Par; }</code>
+compiled and ran <code>Py_INCREF</code> in rayon.)</p>
+<p>Also fixed, and the half a mode-lattice alone leaves open: <code>CopyStrategy::copy</code>
+takes the <code>Python&lt;'_&gt;</code> token <strong>as a parameter of the trait method</strong>, so <code>Par</code>
+cannot be implemented without <code>allow_threads</code> and <code>Seq</code> cannot run without the
+token held. That closes the <code>int → int</code> row.</p>
+<p><strong>What is <em>not</em> claimed.</strong> <code>Python::with_gil</code> inside a rayon closure compiles —
+the token is acquired per worker and never crosses a thread boundary. The
+guarantee is that the <strong>race</strong> is inexpressible, not that the parallel loop is;
+and the price is that a Python-valued map is serialised, which is the correct
+behaviour and what the C++ intended before the predicate was inverted.</p>
+<hr />
+<h3 id="8-determinism"><a class="doc-anchor" href="#8-determinism">§</a>8. Determinism</h3><div><table><thead><tr><th>graph-tool</th><th>here</th></tr></thead><tbody>
+<tr><td><code>std::exception_ptr eptr{}</code> declared outside <code>#pragma omp parallel</code>, assigned inside by every thread (<code>parallel_util.hh:438-446</code>, + 4 copies in <code>graph_properties_copy.cc</code>)</td><td><code>try_det_reduce</code> returns <code>Result</code>; there is no shared slot in the signature</td></tr>
+<tr><td><code>log_sum_exp</code> accumulated under <code>#pragma omp critical</code> (<code>merge_split.hh:1131-1142</code>), so association order is the thread interleaving</td><td><code>Plan</code> fixes the chunk count and the fold order; bit-identical across thread counts</td></tr>
+<tr><td><code>_rngs[tnum - 1]</code> (<code>parallel_rng.hh:56-61</code>), so results depend on <code>OMP_NUM_THREADS</code></td><td><code>Seed::split(chunk_index)</code></td></tr>
+<tr><td><code>get_rngs</code> caches in a process-global map keyed on the <em>address</em> of the caller’s generator, never evicted (<code>:183-191</code>) — a freed generator whose address is reused inherits stale streams</td><td>no global cache</td></tr>
+<tr><td><code>set_concurrent</code> assigns edge ids from per-thread free lists, explicitly non-deterministically</td><td><code>ParBuilder</code> merges in chunk order</td></tr>
+</tbody></table>
+</div>
+<p>The cost is stated: a fixed partition forgoes rayon’s adaptive splitting, so on
+a ragged workload — blockmodel <code>virtual_move</code> cost scales with vertex degree —
+load balance is worse than OpenMP’s <code>schedule(runtime)</code> (<code>parallel_util.hh:405</code>).</p>
+<hr />
+<h3 id="9-unsafe-budget"><a class="doc-anchor" href="#9-unsafe-budget">§</a>9. Unsafe budget</h3>
+<p><strong>Zero hand-written <code>unsafe</code> in the entire workspace.</strong></p>
+<div><table><thead><tr><th>crate</th><th>attribute</th><th>verified</th></tr></thead><tbody>
+<tr><td>gt-core</td><td><code>#![forbid(unsafe_code)]</code></td><td>compiles</td></tr>
+<tr><td>gt-algo</td><td><code>#![forbid(unsafe_code)]</code></td><td>compiles</td></tr>
+<tr><td>gt-inference</td><td><code>#![forbid(unsafe_code)]</code></td><td>compiles</td></tr>
+<tr><td>gt-io</td><td><code>#![forbid(unsafe_code)]</code></td><td>compiles</td></tr>
+<tr><td>gt-py</td><td>no <code>forbid</code> — pyo3’s <code>#[pyclass]</code>/<code>#[pymethods]</code>/<code>#[pymodule]</code> expand to <code>unsafe extern "C"</code> FFI glue</td><td><code>grep -c 'unsafe' crates/gt-py/src</code> finds only the attribute comment</td></tr>
+</tbody></table>
+</div>
+<p><code>forbid</code>, not <code>deny</code>, so no downstream module can re-allow it.</p>
+<p>Deliberately <strong>not</strong> spent:</p>
+<ul>
+<li>Branded <code>get_unchecked</code> on property maps — see D11. Unsound in the one design
+that shipped it, and a net pessimisation on the re-entry access pattern.</li>
+<li><code>transmute</code> for the view types — there is no cast to make; views are values.</li>
+<li><code>unsafe impl Send/Sync</code> for the id types. One design wrote four of these with
+the justification that <code>PhantomData&lt;fn(&amp;'id ()) -&gt; &amp;'id ()&gt;</code> “does not give
+the auto-derive in every position”. That is false, and the cost of writing
+them anyway is that the auto-trait check is permanently suppressed: the same
+struct with a <code>*mut u8</code> field would still be <code>Send</code>.</li>
+<li>Atomic counters on the block-graph aggregates — <code>RowLocks</code> is off the hot
+path by construction and a <code>lock xadd</code> is ~20 cycles against 1.</li>
+</ul>
+<p>What is <em>not</em> under our control: <code>rayon</code>, <code>rustc-hash</code>, <code>rand_chacha</code> and
+<code>pyo3</code> contain <code>unsafe</code> internally. These are widely audited dependencies, not
+code we write.</p>
+<hr />
+<h3 id="10-instantiation-budget"><a class="doc-anchor" href="#10-instantiation-budget">§</a>10. Instantiation budget</h3>
+<p>Methodology for the C++ figures: a census over all <strong>324</strong> <code>run_action</code> /
+<code>gt_dispatch</code> call sites in <code>src/</code> (paren-balanced argument extraction,
+<code>hana::concat</code> treated as a sum, <code>hana::append</code> as +1, the implicit 6-view axis
+added for <code>run_action</code> sites naming no view range) gives <strong>22 233 direct leaf
+instantiations</strong>, median 12 per site. Largest: <code>graph_properties_map_values*.cc</code>
+at 1 440 each, <code>graph_properties_copy_imp1.cc</code> at 1 080,
+<code>prop_map_as</code> (<code>graph_properties.cc:69</code>) at 30 × 30 = 900. The commonly quoted
+~35 440 additionally counts the inference module’s <em>second</em> dispatch layer
+(<code>GEN_DISPATCH</code>, <code>graph_state.hh:384-410</code>). 275 <code>.cc</code> files exist under <code>src/</code>.</p>
+<div><table><thead><tr><th>axis</th><th style="text-align: right">graph-tool</th><th style="text-align: right">here</th><th>note</th></tr></thead><tbody>
+<tr><td>graph views</td><td style="text-align: right">6</td><td style="text-align: right">6</td><td>parity; both exclude undirected∧reversed</td></tr>
+<tr><td>full value universe</td><td style="text-align: right">15</td><td style="text-align: right">15</td><td>parity</td></tr>
+<tr><td>scalar subset</td><td style="text-align: right">6</td><td style="text-align: right">5</td><td><code>long double</code> is storage-only (D7)</td></tr>
+<tr><td>integer subset</td><td style="text-align: right">4</td><td style="text-align: right">4</td><td>parity</td></tr>
+<tr><td>vertex-prop axis (values + index map)</td><td style="text-align: right">16</td><td style="text-align: right">16</td><td><code>IndexProp</code> is the 16th</td></tr>
+<tr><td>index width</td><td style="text-align: right">1 (<code>size_t</code>)</td><td style="text-align: right"><strong>1</strong></td><td>would be 2 if <code>I</code> were a parameter (D5)</td></tr>
+<tr><td>slot table</td><td style="text-align: right">1 emitted, 2 code paths</td><td style="text-align: right"><strong>1</strong></td><td><code>Epos</code> always on (D12)</td></tr>
+<tr><td><code>(s,t)</code> lookup</td><td style="text-align: right">1 emitted, runtime flag</td><td style="text-align: right"><strong>1</strong> default</td><td><code>EHash</code> arms emitted only for actions that declare edge lookup</td></tr>
+<tr><td>conversion lattice (<code>prop_map_as</code>)</td><td style="text-align: right"><strong>900</strong></td><td style="text-align: right"><strong>45</strong></td><td>15 identity + 15 <code>to_any</code> + 15 <code>from_any</code> (D6, §5)</td></tr>
+<tr><td>dependent axes (<code>last_type_func_t</code>, 7 families)</td><td style="text-align: right">1 recursion level + leaf each</td><td style="text-align: right"><strong>0</strong></td><td><code>&lt;V as PropValue&gt;::Elem</code> is a projection, not an axis</td></tr>
+</tbody></table>
+</div>
+<p><strong>Estimated direct leaves here: ≈ 21 000.</strong> That is 22 233 − ~855 (conversion
+lattice) − ~400 (dependent-axis families in the group/ungroup/copy code), i.e.
+<strong>parity within 5%, not a win.</strong> Anyone claiming a large monomorphisation
+saving from Rust here is mistaken; the product is a property of the problem.</p>
+<p>Where Rust is genuinely worse: graph-tool splits instantiations across 277
+translation units and can use <code>extern template</code>. Rust has neither —
+<code>-Z share-generics</code> is nightly-only. Five crates is far coarser parallelism
+than 277 TUs. Mitigations actually applied:</p>
+<ul>
+<li><code>codegen-units = 256</code> and <code>opt-level = 1</code> in <code>[profile.dev]</code>; ~21 000 leaves
+means parallelism matters more than per-unit quality in a debug build.</li>
+<li><code>[profile.release] codegen-units = 1, lto = "fat"</code> — the opposite trade, and
+correct there because the hot paths cross crate boundaries by construction
+(gt-algo kernels generic over gt-core’s <code>GraphRef</code>, gt-inference pricing over
+gt-core’s <code>ReadProp</code>). Without cross-crate inlining every <code>Incident</code>
+manufacture and every <code>IS_UNITY</code> const-fold is lost at the crate edge.</li>
+<li><code>panic = "abort"</code> in release: no kernel in gt-core/gt-algo/gt-inference is
+exception-safe by design (nor are their C++ equivalents), and unwind tables
+across 21 000 leaves are pure size. The PyO3 boundary converts <code>Result</code> into
+<code>PyErr</code>; it never relies on <code>catch_unwind</code>.</li>
+<li><code>[profile.dev] overflow-checks = true</code> — this catches the <code>_n_edges -= 2</code>
+class directly.</li>
+</ul>
+<p>Where Rust is genuinely better on build time: there is no preprocessor.
+graph-tool parses ~4.8M lines per build (48.5× amplification across those 277
+TUs); <code>gt-core</code> is parsed once. The net is a front-end win and a back-end loss,
+and it should be <em>measured</em> on one fat module before the crate split is
+considered final.</p>
+<p><strong>Not designed yet:</strong> the inference module’s second dispatch layer
+(<code>GEN_DISPATCH</code> + <code>all_types_func_wrap</code>, <code>graph_state.hh:203-256</code>), which
+indexes resolved types <strong>by parameter name</strong> rather than positionally. The
+positional <code>last_type_func_t</code> case is solved by <code>PropValue::Elem</code>; the
+name-indexed case needs a generated struct of associated types and is roughly
+13 000 of the ~35 000 figure. This is an open item, not a solved one.</p>
+<hr />
+<h3 id="11-verified-layout"><a class="doc-anchor" href="#11-verified-layout">§</a>11. Verified layout</h3>
+<p>Measured on a real build (<code>size_of</code>), for the default <code>Raw = u32</code>:</p>
+<div><table><thead><tr><th>type</th><th style="text-align: right">bytes</th><th>graph-tool counterpart</th><th style="text-align: right">bytes</th></tr></thead><tbody>
+<tr><td><code>AdjEntry</code></td><td style="text-align: right"><strong>8</strong></td><td><code>pair&lt;vertex_t, vertex_t&gt;</code></td><td style="text-align: right">16</td></tr>
+<tr><td><code>Block</code></td><td style="text-align: right"><strong>32</strong></td><td><code>pair&lt;size_t, vector&lt;...&gt;&gt;</code></td><td style="text-align: right">32 (+ a malloc per non-empty vertex)</td></tr>
+<tr><td><code>EdgeSlot</code></td><td style="text-align: right"><strong>16</strong></td><td><code>pair&lt;uint32_t,uint32_t&gt;</code> in <code>_epos</code></td><td style="text-align: right">8 (positions only, no endpoints)</td></tr>
+<tr><td><code>Incident</code></td><td style="text-align: right"><strong>8</strong></td><td>—</td><td style="text-align: right">—</td></tr>
+<tr><td><code>EdgeRef</code></td><td style="text-align: right"><strong>12</strong></td><td><code>adj_edge_descriptor</code></td><td style="text-align: right">24</td></tr>
+<tr><td><code>&amp;AdjList</code> / <code>Und&lt;&amp;AdjList&gt;</code> / <code>Rev&lt;&amp;AdjList&gt;</code></td><td style="text-align: right"><strong>8 / 8 / 8</strong></td><td>view refs</td><td style="text-align: right">8</td></tr>
+<tr><td><code>Und&lt;Arc&lt;AdjList&gt;&gt;</code></td><td style="text-align: right"><strong>8</strong></td><td><code>shared_ptr&lt;ug_t&gt;</code> from the cast</td><td style="text-align: right">8</td></tr>
+<tr><td><code>Filtered&lt;&amp;AdjList, MaskFilter&gt;</code></td><td style="text-align: right"><strong>56</strong></td><td><code>filt_graph</code> (ref + 5 predicates)</td><td style="text-align: right">larger</td></tr>
+<tr><td><code>Unity&lt;f64, VertexTag&gt;</code></td><td style="text-align: right"><strong>0</strong></td><td><code>UnityPropertyMap</code> (empty class)</td><td style="text-align: right">1</td></tr>
+<tr><td><code>Option&lt;Group&gt;</code></td><td style="text-align: right"><strong>4</strong></td><td><code>int64_t</code> + <code>null_group</code> sentinel</td><td style="text-align: right">8</td></tr>
+<tr><td><code>Option&lt;VertexId&gt;</code></td><td style="text-align: right">8</td><td><code>size_t</code> + sentinel</td><td style="text-align: right">8</td></tr>
+</tbody></table>
+</div>
+<p><code>Und</code>, <code>Rev</code> and <code>Filtered</code> are <code>Copy</code>; every view method takes <code>self</code> by
+value, so the adaptor chain collapses to one pointer after inlining.</p>
+<hr />
+<h3 id="12-performance-ledger-honestly"><a class="doc-anchor" href="#12-performance-ledger-honestly">§</a>12. Performance ledger, honestly</h3><h4 id="wins-measured-or-structural"><a class="doc-anchor" href="#wins-measured-or-structural">§</a>Wins, measured or structural</h4>
+<p>Numbers in this section were taken on one machine and are labelled with what
+was measured and how, because a ledger entry without a method is a memory.
+Unless another profile is named, “measured” means <code>[profile.bench]</code> (which
+inherits <code>release</code>: <code>opt-level = 3</code>, <code>lto = "fat"</code>, <code>codegen-units = 1</code>) on an
+Intel Xeon Gold 6238R (2.20 GHz, 1 MiB L2/core, 38.5 MiB L3/socket), one
+thread pinned with <code>taskset</code>, criterion at 20–30 samples, rustc 1.98.1,
+baseline <code>x86-64</code> (no <code>target-cpu=native</code>: every packed add below is SSE2
+<code>addpd</code>, two lanes, not AVX’s four). The box carried a load average of ~33 of
+112 cores. Every number below is therefore single-threaded; <code>det_reduce</code>,
+<code>pagerank</code> and <code>ParBuilder</code> have benches but <strong>no numbers are recorded for
+them here</strong>, because a rayon result taken on a box with 33 cores already busy
+measures the box. That remains the standing open item it has been since the
+builder’s throughput ladder was first attempted.</p>
+<p>To re-take any of it:</p>
+<div class="example-wrap"><pre class="language-text"><code>cargo bench -p gt-core      --bench adjacency   # entry_width, add_edge/scaling
+cargo bench -p gt-core      --bench reduce      # chunked_sum/lanes
+cargo bench -p gt-algo      --bench weights     # Unity / Constant / DenseProp
+cargo bench -p gt-algo      --bench kernels     # bfs, components, shortest_distances
+cargo bench -p gt-inference --bench sbm         # record, sparse_ds, move_vertex
+cargo test  -p gt-core      --test ledger_layout -- --nocapture   # section 11
+cargo test  -p gt-inference --test ledger_sbm                     # allocation counts
+objdump -d --disassemble=gtprobe_&lt;name&gt; target/release/deps/&lt;bench&gt;-*</code></pre></div>
+<p>The <code>gtprobe_*</code> symbols are <code>#[inline(never)] #[unsafe(no_mangle)]</code> wrappers
+that exist only so that <code>objdump</code> has something to name; they live in the
+bench files beside the group they justify.</p>
+<ul>
+<li>
+<p><strong>2× on the adjacency stream, as a footprint. 1.22× as a time.</strong>
+<code>AdjEntry</code> is 8 bytes against graph-tool’s 16 – <code>graph.hh:137</code> fixes
+<code>vertex_t = size_t</code>, so <code>edge_list_t</code> (<code>graph_adjacency.hh:224</code>) has a
+16-byte element – and <code>tests/ledger_layout.rs</code> re-derives that ratio from
+<code>size_of::&lt;usize&gt;()</code> on every run rather than restating the 2.</p>
+<p>The <em>time</em> ratio was not measured until now, and it is not 2. <code>benches/ adjacency.rs::entry_width</code> scans two <code>Vec&lt;Vec&lt;_&gt;&gt;</code> mirrors of the same
+graph, same degree distribution, same loop, differing only in whether an
+entry is <code>(u32,u32)</code> or <code>(u64,u64)</code>:</p>
+<div><table><thead><tr><th>working set</th><th style="text-align: right">8 B</th><th style="text-align: right">16 B</th><th style="text-align: right">ratio</th></tr></thead><tbody>
+<tr><td>0.8 M entries (6.4 / 12.8 MB, in L3)</td><td style="text-align: right">884.8 µs</td><td style="text-align: right">1.083 ms</td><td style="text-align: right"><strong>1.22×</strong></td></tr>
+<tr><td>16 M entries (128 / 256 MB, out of L3)</td><td style="text-align: right">57.67 ms</td><td style="text-align: right">70.43 ms</td><td style="text-align: right"><strong>1.22×</strong></td></tr>
+<tr><td>16 M entries, one flat run, no per-vertex block</td><td style="text-align: right">13.85 ms</td><td style="text-align: right">26.19 ms</td><td style="text-align: right"><strong>1.89×</strong></td></tr>
+</tbody></table>
+</div>
+<p>The flat row is the ceiling and it reaches the claimed 2×. The blocked rows
+do not, at either working set, because a per-vertex allocation is a pointer
+chase per vertex and neither width comes near memory bandwidth there (2.22
+and 3.63 GB/s, against 9.24 and 9.78 GB/s on the flat run). <strong>The entry width
+is worth 1.22× on the adjacency as it is actually laid out</strong>; the remaining
+0.6× is available only to a CSR-flattened adjacency, which this port does
+not have. Corrected from “2× on the adjacency stream”, which quoted the
+footprint ratio as though it were the throughput ratio.</p>
+</li>
+<li>
+<p><strong>The before-image.</strong> Two cache-cold dependent loads per entry removed from
+<code>entries_dS</code>, the hottest kernel in the library (D10). Confirmed at the
+instruction level rather than argued: <code>state.hh:1226-1231</code> does
+<code>_emat.get_me(t, w)</code> and then <code>_mrs[me]</code>, two dependent loads per entry,
+while <code>objdump --disassemble=gtprobe_sparse_ds</code> on <code>benches/sbm.rs</code> shows
+the port’s loop reading <code>0x8(%r12,%rbx,1)</code> and <code>0x10(%r12,%rbx,1)</code> –
+<code>mrs_before</code> and <code>delta</code>, both out of the entry itself – and advancing with
+<code>add $0x20,%rbx</code>, one contiguous 32-byte stride. The price paid for it is
+the entry width: <code>Entry&lt;W&gt;</code> is 32 bytes because it interns <code>me</code> and
+<code>mrs_before</code>.</p>
+<p>Measured (<code>benches/sbm.rs::sbm/sparse_ds</code>, deltas of 4/17/24/32 entries,
+66.98 / 180.55 / 240.44 / 310.42 ns): a least-squares fit is <strong>8.69 ns per
+entry plus 32.4 ns fixed</strong> – the fixed part being the two <code>vterm</code> pairs at
+<code>r</code> and <code>nr</code> – and all four points sit within 0.3% of that line. A shape
+that re-derived <code>mrs</code> per entry could not be linear in the entry count at a
+flat per-entry cost.</p>
+</li>
+<li>
+<p><strong><code>Block</code> at 32 bytes with no per-vertex malloc</strong> for isolated vertices –
+<strong>which is parity with graph-tool, not a win over it.</strong> Its vertex record
+(<code>graph_adjacency.hh:225</code>, <code>pair&lt;size_t, edge_list_t&gt;</code>) is 8 + 24 = 32 too,
+and <code>add_vertex</code> (<code>:1318-1336</code>) <code>emplace_back</code>s a default-constructed
+<code>vector</code>, which does not allocate either. Both halves are parity. Listed
+here because it is a property worth <em>keeping</em> – an inline small-vector
+buffer was measured at 48 bytes and rejected – not because it is an
+advantage. <code>tests/ledger_layout.rs::block_is_one_vec_plus_one_word_and_an_empty_one_does_not_allocate</code>
+pins it.</p>
+</li>
+<li>
+<p><strong>Monomorphised <code>Dir</code> / <code>Filter</code> / <code>Lookup</code></strong> delete the runtime flag tests
+C++ performs inside <code>add_edge</code> (<code>:1195</code>, <code>:1213</code>), <code>remove_edge</code> (<code>:1251</code>)
+and <code>reverse_edge</code> (<code>:576</code>). Visible in the <code>entries_dS</code> disassembly above:
+<code>eterm::&lt;D&gt;</code> branches on <code>D::DIRECTED || r != s</code>, so at the <code>Directed</code>
+instantiation the <code>r</code> and <code>s</code> fields of <code>Entry</code> are <strong>never loaded at all</strong>
+– the 694-instruction body of <code>sparse_terms::&lt;Directed, i64&gt;</code> touches only
+offsets <code>0x8</code> and <code>0x10</code> of each 32-byte entry.</p>
+</li>
+<li>
+<p><strong>The <code>Unity</code> weight map costs nothing, measured three ways.</strong>
+<code>weighted_out_degree</code> (<code>gt-algo/src/degree.rs:122-136</code>) selects one of three
+arms on <code>W::IS_UNITY</code> / <code>W::IS_CONSTANT</code>, and section 11’s <code>Unity</code> row (0
+bytes) is only half the claim. <code>benches/weights.rs</code> carries three
+<code>#[inline(never)]</code> probes at the three monomorphisations, so
+<code>objdump --disassemble=gtprobe_*_out_degree</code> settles it in the shipped
+profile rather than in a test binary:</p>
+<div><table><thead><tr><th>arm</th><th style="text-align: right">instructions</th><th>backward branch</th><th>loads from the map</th></tr></thead><tbody>
+<tr><td><code>Unity</code></td><td style="text-align: right"><strong>14</strong> (10 on the empty-block path)</td><td>none</td><td><strong>none, at any address</strong></td></tr>
+<tr><td><code>Constant</code></td><td style="text-align: right">34</td><td>none</td><td>one <code>mulsd (%rdx)</code>, hoisted out of nothing</td></tr>
+<tr><td><code>DenseProp&lt;f64&gt;</code></td><td style="text-align: right">29, of which a <strong>7-instruction loop</strong></td><td>yes</td><td>one <code>addsd (%rcx,%rdi,8)</code> per incident edge</td></tr>
+</tbody></table>
+</div>
+<p>“Folds to a couple of instructions” was the standing informal claim; 14 is
+the measured number. Static size is the wrong axis anyway – <code>Constant</code> is
+the <em>largest</em> of the three and the second cheapest – so what the table is
+for is the other two columns: whether there is a loop over the
+neighbourhood, and whether the map is read at all. Wall clock, 100 000
+vertices / 500 000 edges:</p>
+<div><table><thead><tr><th>sweep</th><th style="text-align: right"><code>Unity</code></th><th style="text-align: right"><code>DenseProp&lt;f64&gt;</code></th><th style="text-align: right">ratio</th></tr></thead><tbody>
+<tr><td><code>sum_v weighted_out_degree</code> (500 k incidences)</td><td style="text-align: right">130.4 µs</td><td style="text-align: right">2.242 ms</td><td style="text-align: right"><strong>17.2×</strong></td></tr>
+<tr><td><code>sum_v weighted_degree</code> (1 M incidences)</td><td style="text-align: right">125.2 µs</td><td style="text-align: right">4.424 ms</td><td style="text-align: right"><strong>35.3×</strong></td></tr>
+</tbody></table>
+</div>
+<p>The unity arm does not scale with the edge count because it does not read
+edges: both rows are ~1.3 ns per <em>vertex</em>. <code>Constant</code> is 147.5 µs, i.e.
+1.13× the unity arm and 15× cheaper than the general one, which is the
+<code>IS_CONSTANT</code> arm earning its place. The <code>DenseProp</code> inner loop retains its
+bounds check and a reachable <code>panic_bounds_check</code>, as D11 accepts.</p>
+</li>
+<li>
+<p><strong>No per-dereference <code>reinterpret_cast</code>.</strong> <code>make_in_or_out_edge</code>
+(<code>graph_adjacency.hh:328-341</code>) casts the CRTP base to the derived iterator on
+every dereference just to read <code>_pos</code>. An anchored <code>Incident</code> needs neither.</p>
+</li>
+<li>
+<p><strong>One <code>TypeId</code> compare at the boundary</strong>, against up to three <code>any_cast</code>
+probes per candidate plus a <code>try</code>/<code>catch</code> on the Python path.</p>
+</li>
+<li>
+<p><strong>One <code>Vec</code> allocation per property map</strong>, against <code>shared_ptr&lt;vector&lt;T&gt;&gt;</code>’s
+two plus atomic refcount traffic on every copy into a parallel region.</p>
+</li>
+</ul>
+<h4 id="losses-stated"><a class="doc-anchor" href="#losses-stated">§</a>Losses, stated</h4>
+<ul>
+<li>
+<p><strong>No floating-point reassociation.</strong> <code>#pragma omp parallel for reduction(+:S)</code>
+(<code>potts/spec.hh:133, :143</code>) <em>licenses</em> GCC to vectorise the accumulation.
+Rust’s <code>f64 +=</code> does not, and measurement confirms it: a serial scan emits
+<code>addsd</code>, never <code>addpd</code>. <strong>Five of the six source designs reported
+entropy-sum performance as parity-or-better without mentioning this.</strong>
+<code>par::reduce::chunked_sum::&lt;LANES&gt;</code> restores instruction-level parallelism,
+and on the current toolchain the SLP vectoriser also packs the lanes –
+without any reassociation licence, because <code>LANES</code> independent accumulators
+fed from consecutive slots are a packed add <em>at the same association order</em>.
+Corrected from an earlier reading of this paragraph, which claimed a
+four-accumulator hand-unroll emits only <code>addsd</code>; it does not.</p>
+<p><strong>The instruction mix, in two profiles, because it differs between them.</strong>
+The numbers this paragraph used to carry – “the scan is 9 <code>addsd</code> / 0
+<code>addpd</code>, and <code>chunked_sum::&lt;4&gt;</code> is 18 <code>addpd</code>” – were taken with a
+standalone <code>rustc -O</code> probe, and they reproduce there exactly. They are not
+the shipped configuration. <code>benches/reduce.rs</code> carries <code>#[inline(never)]</code>
+probes so the same two forms can be disassembled out of <code>[profile.bench]</code>:</p>
+<div><table><thead><tr><th>form</th><th><code>rustc -O</code>, standalone</th><th><code>[profile.bench]</code> (opt-level 3, fat LTO, CGU 1)</th></tr></thead><tbody>
+<tr><td>serial <code>f64</code> fold</td><td>37 insns, 9 <code>addsd</code>, <strong>0 <code>addpd</code></strong></td><td>37 insns, 9 <code>addsd</code>, <strong>0 <code>addpd</code></strong></td></tr>
+<tr><td><code>chunked_sum::&lt;4&gt;</code></td><td>117 insns, 13 <code>addsd</code>, <strong>18 <code>addpd</code></strong></td><td>69 insns, 7 <code>addsd</code>, <strong>6 <code>addpd</code></strong></td></tr>
+<tr><td><code>chunked_sum::&lt;8&gt;</code></td><td>–</td><td>85 insns, 15 <code>addsd</code>, <strong>4 <code>addpd</code></strong></td></tr>
+</tbody></table>
+</div>
+<p>The claim that matters is identical in both columns and is the one that is
+structurally guaranteed: the scan never packs, the lane form does. The
+<code>addpd</code> <em>count</em> is an unroll-factor artefact and should not have been stated
+as a constant. Every <code>addpd</code> here is SSE2, two lanes; the port ships
+baseline <code>x86-64</code>, so <code>-C target-cpu=native</code> would change these numbers
+again.</p>
+<p><strong>What the licence is worth, which this paragraph never said.</strong> 1 Mi <code>f64</code>
+(8 MB), <code>benches/reduce.rs::chunked_sum/lanes</code>:</p>
+<div><table><thead><tr><th>form</th><th style="text-align: right">time</th><th style="text-align: right">vs. the strict fold</th></tr></thead><tbody>
+<tr><td>serial <code>f64</code> fold</td><td style="text-align: right">1.247 ms</td><td style="text-align: right">1.00×</td></tr>
+<tr><td><code>chunked_sum::&lt;1&gt;</code></td><td style="text-align: right">1.246 ms</td><td style="text-align: right">1.00× (it <em>is</em> the fold)</td></tr>
+<tr><td><code>chunked_sum::&lt;2&gt;</code></td><td style="text-align: right">625.2 µs</td><td style="text-align: right">1.99×</td></tr>
+<tr><td><code>chunked_sum::&lt;4&gt;</code></td><td style="text-align: right">345.8 µs</td><td style="text-align: right"><strong>3.61×</strong></td></tr>
+<tr><td><code>chunked_sum::&lt;8&gt;</code></td><td style="text-align: right">333.6 µs</td><td style="text-align: right">3.74×</td></tr>
+</tbody></table>
+</div>
+<p>So a strict left fold costs <strong>3.6×</strong> against this port’s own deterministic
+lane form, and that is the size of the thing <code>reduction(+:S)</code> licenses.
+<code>chunked_sum</code> recovers essentially all of it at four lanes (3.61 of a 3.74
+ceiling). The reason it can is that the strict fold is latency-bound rather
+than bandwidth-bound: 1.19 ns per element is 6.72 GB/s, against the
+9.24-9.78 GB/s this same machine sustained on the flat adjacency scan two
+entries above, so the <code>addsd</code> dependency chain is the binding constraint
+and independent accumulators go straight at it. The loss that remains is
+the licence itself,
+at every site that still spells a reduction as <code>f64 +=</code>: graph-tool may
+reassociate a loop this port may not, so each such site pays up to 3.6×
+until it is converted. Explicit lane control still waits for <code>core::simd</code>.</p>
+<p>The claim is no longer taken on trust:
+<code>tests/u11_reduce.rs::the_ledger_records_whether_chunked_sum_vectorises</code>
+disassembles both forms on every run, asserts only what is structurally
+guaranteed (a serial <code>f64</code> fold can never pack), and writes what it found
+to <code>target/debug/deps/u11_codegen_ledger.txt</code>.</p>
+</li>
+<li>
+<p><strong>Bounds checks on scatter.</strong> <code>pm[target(e)] += x</code> keeps a compare per
+element that <code>unchecked_vector_property_map::operator[]</code> does not. Accepted
+per D11; <code>as_mut_slice()</code> is the escape for anything expressible as a scan.</p>
+</li>
+<li>
+<p><strong>One allocation per SBM commit, which nothing else in the move cycle
+pays.</strong> <code>Receipt</code> owns <code>entries: Vec&lt;Entry&lt;W&gt;&gt;</code> (<code>delta/lifecycle.rs:203</code>)
+so that the before-image survives into <code>audit_commit</code>, and building it is a
+fresh heap object on every move. Measured with a counting <code>GlobalAlloc</code>
+(<code>gt-inference/tests/ledger_sbm.rs</code>), over 10 000 moves after warm-up:</p>
+<div><table><thead><tr><th>stage</th><th style="text-align: right">allocations per move</th></tr></thead><tbody>
+<tr><td><code>record</code> (<code>modify_entries</code> + <code>get_move_entries</code>)</td><td style="text-align: right"><strong>0</strong></td></tr>
+<tr><td><code>sparse_ds</code> (<code>entries_dS</code>)</td><td style="text-align: right"><strong>0</strong></td></tr>
+<tr><td><code>commit</code></td><td style="text-align: right"><strong>1</strong></td></tr>
+<tr><td><code>reseat</code></td><td style="text-align: right"><strong>0</strong></td></tr>
+</tbody></table>
+</div>
+<p><code>DeltaBuf::begin</code> (<code>delta/buf.rs:149</code>) really does drain and clear rather
+than free, and the entry vector reaches its high-water mark and stays
+there – the recorder allocated nothing at all across 10 000 moves once
+warm. The commit’s one is structural, not an oversight: it is what D10’s
+“the level is the unit of consumption” costs when the audit has to run
+after the state has already moved. It is a malloc/free pair against a
+1.97 µs move, so it is small; it is recorded because the surrounding
+design reads as though the cycle were allocation-free, and it is not.
+The whole cycle measures 1.97 µs per move at |V| = 20 000, |E| = 100 000,
+B = 64 (<code>benches/sbm.rs::sbm/move_vertex</code>), of which <code>record</code> is 1.31 µs.</p>
+</li>
+<li>
+<p><strong><code>add_edge</code> is O(1) amortised, but its constant grows with the graph.</strong>
+Defect #18’s detector (<code>benches/adjacency.rs::add_edge/scaling</code>) exists to
+catch a <code>Vec::insert</code> transliteration, which would double the per-edge time
+every rung. It does not double – but it does not stay flat either, which
+the bench’s own comment used to claim:</p>
+<div><table><thead><tr><th>edges (vertices = edges/4)</th><th style="text-align: right">10 k</th><th style="text-align: right">20 k</th><th style="text-align: right">40 k</th><th style="text-align: right">80 k</th><th style="text-align: right">160 k</th><th style="text-align: right">320 k</th></tr></thead><tbody>
+<tr><td>ns per edge</td><td style="text-align: right">53.8</td><td style="text-align: right">57.0</td><td style="text-align: right">80.0</td><td style="text-align: right">89.8</td><td style="text-align: right">107.9</td><td style="text-align: right">187.1</td></tr>
+</tbody></table>
+</div>
+<p>3.5× over five doublings, against 32× for a quadratic insert and 1× for a
+flat append: the detector’s purpose is intact and its stated acceptance
+criterion was wrong. The shape is what growing |V| independent <code>Vec</code>s under
+random access costs – reallocation plus a cache miss per touched block –
+and the port has no way to avoid it today, because there is no
+<code>reserve_edges</code> on <code>AdjList</code> (the open item U6 recorded against D9: the
+builder can count degrees in parallel but cannot size the blocks, since
+<code>AdjList</code>’s fields are private to <code>adj/list.rs</code>). Sizing every block once
+is the fix and it is unwritten.</p>
+</li>
+<li>
+<p><strong><code>swap_remove_vertex</code> is 2–4× slower.</strong> C++ patches endpoints in place
+(<code>:1489-1523</code>); here it is unlink+relink per incident edge, which is the only
+way to make the stale-index class impossible rather than merely absent today.</p>
+</li>
+<li>
+<p><strong><code>Filtered::new</code> costs an O(V + E) prepass.</strong> C++ gets O(1) by returning the
+wrong number.</p>
+</li>
+<li>
+<p><strong>Fixed chunking loses to <code>schedule(runtime)</code></strong> on ragged workloads (§8).</p>
+</li>
+<li>
+<p><strong>Coarse recompilation.</strong> Five crates against 277 TUs (§10).</p>
+</li>
+<li>
+<p><strong>Adjacency order changes after removals.</strong> Swap-with-back against
+erase-and-shift (<code>:1257-1263</code>). <code>gt-io</code> therefore emits in <code>EdgeId</code> order,
+not adjacency order, so round-trips stay byte-reproducible.</p>
+</li>
+</ul>
+<h4 id="withdrawn-claims"><a class="doc-anchor" href="#withdrawn-claims">§</a>Withdrawn claims</h4>
+<ul>
+<li>Branded-index <code>unsafe</code> “4× unroll / 2–4× on gather-bound sums”: measured at
+17 → 10 instructions on a scan and <strong>a regression</strong> on re-entry (D11).</li>
+<li>Const-generic filtered-view measurements from one source design: taken
+against a <code>vmask</code> that was never read.</li>
+<li>“Zero allocation, better than C++” for <code>clear_vertex</code>: only true with the
+reusable scratch, which is why <code>AdjList</code> carries one.</li>
+<li><strong>“2× on the adjacency stream” as a throughput number.</strong> The footprint
+ratio is exactly 2 and survives; the time ratio is 1.22× on the blocked
+adjacency this port actually has, and reaches 1.89× only on a flat
+contiguous run. Measured both ways above.</li>
+<li><strong><code>Block</code>’s “no per-vertex malloc” as a win.</strong> It is parity: graph-tool’s
+vertex record is 32 bytes too and its <code>add_vertex</code> does not allocate for an
+isolated vertex either. Reclassified above, not deleted – it is still a
+property this port has to keep.</li>
+<li><strong><code>chunked_sum::&lt;4&gt;</code> “is 18 <code>addpd</code>” as a constant.</strong> True of the
+standalone <code>rustc -O</code> probe it was taken from, and 6 in the shipped
+<code>[profile.bench]</code> build. The unroll factor is not a design property; that
+the serial fold emits <strong>zero</strong> packed adds in both is.</li>
+</ul>
+<hr />
+<h3 id="13-changes-forced-by-the-compiler"><a class="doc-anchor" href="#13-changes-forced-by-the-compiler">§</a>13. Changes forced by the compiler</h3>
+<p>Every item here is a signature that could not be written as designed.</p>
+<ol>
+<li><strong><code>Fill</code> with an associated context was dropped.</strong> A blanket
+<code>impl&lt;T: FillFree&gt; Fill for T</code> overlaps a manual <code>impl Fill for PyValue</code>,
+and Rust cannot prove <code>PyValue: !FillFree</code>. Replaced by <code>Zeroed</code> (context-free,
+14 members) plus <code>sized_for_with(bound, fill: impl FnMut() -&gt; T)</code> for the
+Python member. Strictly more general.</li>
+<li><strong><code>InFields</code> with <code>unreachable!()</code> was replaced by <code>Field&lt;D&gt;</code></strong> and a
+<code>Vec&lt;Vec&lt;u32&gt;&gt;</code> field table of length <code>D::N_FIELDS</code>. No unreachable arm.</li>
+<li><strong><code>Slots</code>/<code>Scan</code> removed as a type parameter</strong> (D12); <code>EdgeSlots</code> is a
+field, and it carries endpoints.</li>
+<li><strong><code>I: RawId</code> removed as a type parameter</strong>; <code>ids::Raw</code> is a crate alias (D5).</li>
+<li><strong><code>MaskFilter::new</code> removed.</strong> Only <code>Filtered::masked</code> constructs one, so
+validation and use are one statement (§4).</li>
+<li><strong><code>ExactIncidence</code></strong> carries its <code>ExactSizeIterator</code> requirement as a
+<code>where</code> clause on the trait declaration; as a supertrait bound on
+<code>GraphRef</code> it excludes filtered views.</li>
+<li><strong><code>value_subset!</code> lives in gt-core</strong>, with the types it names. Splitting
+macro and types across crates gives <code>error[E0433]</code> on every <code>$crate::</code> path.</li>
+<li><strong><code>ParBuilder::fill(make: F)</code></strong> — <code>gen</code> is a reserved keyword in edition
+2024.</li>
+<li><strong>rand 0.9, not 0.8.</strong> <code>rng.gen()</code> needs <code>r#gen</code> under edition 2024.</li>
+<li><strong><code>[profile.bench] panic</code> removed</strong> — cargo ignores it and warns.</li>
+<li><strong><code>DynGraph</code>’s blanket impl needs a <code>GraphBaseExt</code> helper trait</strong>, because
+<code>self.num_vertices()</code> inside it resolves to the trait method being defined
+and recurses.</li>
+<li><strong>gt-py carries <code>#![allow(unsafe_op_in_unsafe_fn)]</code> and a module-scoped
+<code>#![allow(clippy::useless_conversion)]</code>.</strong> pyo3 0.22’s macro expansion
+predates edition 2024. Both are removed when the workspace moves to a pyo3
+release built for it.</li>
+<li><strong><code>PyValue</code> lives in gt-core behind <code>feature = "python"</code></strong>, not in gt-py,
+so that <code>PropValue</code>’s seal cannot be re-opened (§7).</li>
+<li><strong><code>Scalar</code> excludes <code>long double</code></strong>; <code>LongDouble</code> is opaque (D7).</li>
+<li><strong><code>ToF64</code> replaces <code>Into&lt;f64&gt;</code></strong> — no <code>From&lt;i64&gt; for f64</code> exists (D7).</li>
+<li><strong><code>ref-cast</code> dropped</strong>, with the <code>&amp;G → &amp;Und&lt;G&gt;</code> conversion (§4).</li>
+<li><strong><code>SlotRef</code> is 8 bytes</strong>, not a packed <code>u32</code>. The <code>field:2 | other:30</code>
+packing caps the group count at 2³⁰ — a capability the C++ has — to save
+four bytes in a loop that runs once per cleared slot.</li>
+<li><strong><code>AdjList</code> carries a reusable <code>Vec&lt;EdgeId&gt;</code> scratch</strong>, rather than a
+per-call <code>Vec</code> or an inline small-vector that spills above degree 16.</li>
+<li><strong><code>pair_mut</code> returns <code>Option&lt;Pair&lt;'_, T&gt;&gt;</code></strong> in caller order, with a <code>Same</code>
+variant (D9).</li>
+<li><strong><code>Rng</code> is a method-level type parameter</strong>, not a fixed concrete type.</li>
+</ol>
+<hr />
+<h3 id="14-defect-table"><a class="doc-anchor" href="#14-defect-table">§</a>14. Defect table</h3>
+<p><code>graph-tool defect → Rust mechanism</code>. “Eliminated” means the failure has no
+representation, and the cited error was produced by the compiler.</p>
+<div><table><thead><tr><th style="text-align: right">#</th><th>defect (file:line)</th><th>status</th><th>mechanism</th></tr></thead><tbody>
+<tr><td style="text-align: right">1</td><td><code>clear_vertex</code> counts <code>remove_if</code>’s moved-from tail, decrementing <code>_n_edges</code> by 2 for one removed edge (<code>graph_adjacency.hh:1403-1410</code>)</td><td><strong>eliminated</strong></td><td><code>num_edges()</code> is <code>EdgeIds::live()</code>, mutated only in <code>alloc</code>/<code>release</code>; <code>clear_vertex_where</code> is one loop over <code>remove_edge</code></td></tr>
+<tr><td style="text-align: right">2</td><td>two divergent <code>clear_vertex</code> bodies, one wrong (<code>:1343-1414</code> vs <code>:1416-1434</code>)</td><td><strong>eliminated</strong></td><td>one configuration (D12), therefore one algorithm</td></tr>
+<tr><td style="text-align: right">3</td><td><code>remove_vertex_fast</code> leaves <code>_ehash</code> keyed on a dead vertex for in-neighbours (<code>:1471-1535</code>)</td><td><strong>eliminated</strong></td><td><code>Lookup</code> keyed on the ordered pair; relabelling is unlink+relink through the two splices</td></tr>
+<tr><td style="text-align: right">4</td><td><code>_dummy</code> fallthrough aliases two out-of-plane pairs into one entry (<code>entries.hh:108-119, :223</code>)</td><td><strong>eliminated</strong></td><td><code>Field&lt;D&gt;</code> is total; <code>touch_dyn</code> returns <code>Err(OutOfPlane)</code>; no dummy cell exists</td></tr>
+<tr><td style="text-align: right">5</td><td><code>_epos</code> is <code>uint32_t</code> beneath a <code>size_t</code> vertex (<code>:620</code>)</td><td><strong>eliminated</strong></td><td>positions are <code>Raw</code>; <code>EdgeSlot</code> static-asserted at <code>4 * size_of::&lt;Raw&gt;()</code></td></tr>
+<tr><td style="text-align: right">6</td><td><code>get_unchecked(size = 0)</code> hands kernels unvalidated maps (<code>dispatch.hh:174</code>)</td><td><strong>eliminated</strong></td><td><code>sized_for(bound)</code> fuses growth and view; no other constructor</td></tr>
+<tr><td style="text-align: right">7</td><td><code>copy_property</code> sizes from a <em>filtered</em> count and writes at <em>unfiltered</em> indices (<code>graph_copy.cc:66-73</code>)</td><td><strong>eliminated</strong></td><td><code>Bound</code> is minted only by the unfiltered graph, <code>Bound::new</code> is <code>pub(crate)</code> → <code>error[E0624]</code></td></tr>
+<tr><td style="text-align: right">8</td><td>a map from graph A indexed by graph B’s descriptors</td><td><strong>eliminated</strong> (runtime)</td><td><code>GraphId</code> compared once at <code>sized_for</code>; <code>PropError::WrongGraph</code></td></tr>
+<tr><td style="text-align: right">9</td><td><code>reinterpret_pointer_cast</code> to an object never constructed as that type (<code>graph_filtering.cc:78, :92</code>)</td><td><strong>eliminated</strong></td><td><code>Und&lt;Arc&lt;AdjList&gt;&gt;</code> / <code>Rev&lt;Arc&lt;AdjList&gt;&gt;</code> by move, same layout (verified 8 = 8)</td></tr>
+<tr><td style="text-align: right">10</td><td><code>reinterpret_cast&lt;Graph&amp;&gt;(*this)</code> out of a private base (<code>graph_adaptor.hh:46</code>, <code>graph_reverse.hh:47</code>, <code>fast_vector_property_map.hh:111</code>)</td><td><strong>eliminated</strong></td><td>no inheritance, no casts, <code>#![forbid(unsafe_code)]</code></td></tr>
+<tr><td style="text-align: right">11</td><td><code>unchecked_vector_property_map::operator[]</code> reads out of bounds (<code>:218-221</code>)</td><td><strong>eliminated</strong></td><td><code>ReadProp::get_ref</code> is checked; <code>as_slice()</code> for elision</td></tr>
+<tr><td style="text-align: right">12</td><td><code>in_edges</code> on an undirected view returns an empty range (<code>graph_adaptor.hh:224-233</code>)</td><td><strong>eliminated</strong></td><td>no <code>Bidirectional for Und&lt;_&gt;</code> → <code>error[E0599]</code> (verified)</td></tr>
+<tr><td style="text-align: right">13</td><td><code>edge(u,v,undirected)</code> swaps endpoints, disagreeing with iteration (<code>:161</code>)</td><td><strong>eliminated</strong></td><td>one rule: <code>out_edges</code> yields anchored <code>Incident</code>, <code>find_edge</code> yields canonical <code>EdgeRef</code>; different questions, different types</td></tr>
+<tr><td style="text-align: right">14</td><td>undirected traversal reads the wrong endpoint</td><td><strong>eliminated</strong></td><td><code>Incident.other</code> is the neighbour by construction (D2)</td></tr>
+<tr><td style="text-align: right">15</td><td><code>num_vertices</code> on a filtered view is the unfiltered count (<code>graph_filtered.hh:316</code>)</td><td><strong>eliminated</strong></td><td><code>num_vertices()</code> honest, <code>vertex_bound()</code> separate type</td></tr>
+<tr><td style="text-align: right">16</td><td><code>distance(ei, eiend) != num_edges(g)</code> (<code>:301-312</code>)</td><td><strong>eliminated</strong></td><td>both counted from <code>edges()</code> with the same predicate</td></tr>
+<tr><td style="text-align: right">17</td><td>undirected∧reversed corner removed by a value-level <code>hana::filter</code> a caller can bypass (<code>graph_filtering.hh:112-118</code>)</td><td><strong>eliminated</strong></td><td><code>Rev&lt;Und&lt;_&gt;&gt;</code> → <code>error[E0271]</code> (verified); duplicates unnameable too</td></tr>
+<tr><td style="text-align: right">18</td><td><code>add_edge</code> transliterated as <code>insert</code> → quadratic</td><td><strong>avoided</strong></td><td>O(1) push-swap, <code>graph_adjacency.hh:1192-1215</code></td></tr>
+<tr><td style="text-align: right">19</td><td>Potts scores a uniform proposal with the base’s density (<code>potts/spec.hh:124</code>)</td><td><strong>eliminated</strong></td><td><code>propose</code> returns <code>log_fwd</code>; no second home for the density (D8)</td></tr>
+<tr><td style="text-align: right">20</td><td><code>is_determinisitic</code> typo makes the default dead (<code>mcmc_loop.hh:60</code>)</td><td><strong>eliminated</strong></td><td>one required <code>schedule() -&gt; Schedule</code></td></tr>
+<tr><td style="text-align: right">21</td><td>five <code>// required</code> members with working bodies (<code>mcmc_loop.hh:39-56</code>)</td><td><strong>eliminated</strong></td><td>all required; the default-body rule (D8)</td></tr>
+<tr><td style="text-align: right">22</td><td><code>has_merge</code> / <code>_has_merge</code> duplicated at two scopes</td><td><strong>eliminated</strong></td><td>capability = trait presence</td></tr>
+<tr><td style="text-align: right">23</td><td><code>(dS, a)</code> tuple transposed positionally (<code>mcmc_loop.hh:174</code>)</td><td><strong>eliminated</strong></td><td><code>MoveScore { d_entropy, log_hastings }</code></td></tr>
+<tr><td style="text-align: right">24</td><td><code>(r, s, dir)</code> hand-swapped on adjacent lines (<code>mcmc.hh:123-124</code>)</td><td><strong>eliminated</strong></td><td>defaulted <code>log_hastings</code></td></tr>
+<tr><td style="text-align: right">25</td><td>multi-step states inexpressible without a return-type probe (<code>:112-118</code>)</td><td><strong>eliminated</strong></td><td><code>Step { mv, nsteps }</code> + <code>steps_per_iter</code></td></tr>
+<tr><td style="text-align: right">26</td><td>shared <code>std::exception_ptr</code> written by every thread (<code>parallel_util.hh:441</code>, ×5)</td><td><strong>eliminated</strong></td><td><code>try_det_reduce -&gt; Result</code>; no shared slot in the signature, and the surviving error is the lowest chunk’s – <code>tests/u11_reduce.rs::the_lowest_failing_chunk_supplies_the_error</code></td></tr>
+<tr><td style="text-align: right">27</td><td>FP reduction order is the thread interleaving (<code>merge_split.hh:1140</code>)</td><td><strong>eliminated</strong></td><td><code>Plan</code> fixes chunks and fold order; <code>tests/u11_reduce.rs::log_sum_exp_is_bit_identical_across_thread_counts</code></td></tr>
+<tr><td style="text-align: right">28</td><td>RNG keyed on thread id (<code>parallel_rng.hh:56-61</code>)</td><td><strong>eliminated</strong></td><td><code>Seed::split(chunk)</code>; pinned by <code>tests/u11_reduce.rs::each_chunk_draws_the_stream_its_index_names</code></td></tr>
+<tr><td style="text-align: right">29</td><td>RNG cache keyed on a reusable address, never evicted (<code>:65-69</code>, <code>:73</code>)</td><td><strong>eliminated</strong></td><td>no global cache; <code>Seed::split</code> is pure, pinned by <code>tests/u10_plan.rs::split_is_a_pure_function</code></td></tr>
+<tr><td style="text-align: right">30</td><td>inverted GIL predicate releases the GIL <em>and</em> parallelises <code>python::object</code> (<code>graph_properties_copy.cc:35-42</code>, ×5)</td><td><strong>eliminated</strong></td><td><code>PyValue: !Send</code> → <code>error[E0599]</code> (verified); lattice; token-carrying <code>CopyStrategy</code></td></tr>
+<tr><td style="text-align: right">31</td><td>GIL held across a long serial <code>int → int</code> loop (same lines)</td><td><strong>eliminated</strong></td><td><code>Par::copy</code>’s body <em>is</em> <code>allow_threads</code></td></tr>
+<tr><td style="text-align: right">32</td><td><code>GILRelease</code> is a silent no-op on a thread not already holding the GIL (<code>gil_release.hh:31-35</code>)</td><td><strong>eliminated</strong></td><td><code>detach</code>’s <code>F: Send</code> excludes the token structurally</td></tr>
+<tr><td style="text-align: right">33</td><td><code>_count[r] += w</code> non-atomic between two <code>omp atomic</code> (<code>partition.hh:78-84</code>)</td><td><strong>eliminated</strong></td><td><code>RowLocks</code>; the row is reachable only through its guard</td></tr>
+<tr><td style="text-align: right">34</td><td>three global mutable caches + <code>[[gnu::const]]</code> lying about it (<code>cache.hh:56, :73, :102, :137</code>)</td><td><strong>eliminated</strong></td><td><code>&amp;Cache</code>, immutable, <code>Sync</code>, threaded explicitly</td></tr>
+<tr><td style="text-align: right">35</td><td><code>apply_delta</code> double-apply corrupts counts (<code>entries.hh:429</code>)</td><td><strong>eliminated</strong></td><td><code>Applied</code> is <code>!Clone</code>, consumed by value</td></tr>
+<tr><td style="text-align: right">36</td><td>a delta applied to the wrong state</td><td><strong>eliminated</strong></td><td><code>Stamp { StateId, Epoch }</code>; an epoch alone does not identify a state</td></tr>
+<tr><td style="text-align: right">37</td><td><code>__test__ = False</code>: the delta/absolute cross-check is O(E + B²) and off (<code>base_states.py:33, :44-59</code>)</td><td><strong>eliminated</strong></td><td><code>Receipt</code> + O(#entries) <code>audit_commit</code> on every commit under <code>debug_assertions</code></td></tr>
+<tr><td style="text-align: right">38</td><td><code>EntrySet* _next</code> points into a pool that may be resized (<code>state.hh:495-503</code>)</td><td><strong>eliminated</strong></td><td><code>DeltaStack</code> + <code>split_at_mut</code></td></tr>
+<tr><td style="text-align: right">39</td><td><code>s_es</code>/<code>t_es</code> alias when <code>s == t</code> (<code>:1243-1249</code>)</td><td><strong>eliminated</strong></td><td>borrowck forbids two <code>&amp;mut</code> blocks; <code>splice_out</code> is forced to sequence</td></tr>
+<tr><td style="text-align: right">40</td><td><code>null_group = INT64_MAX</code> checked by hand ~30 times, and <code>b[u]</code> is unchecked (<code>entries.hh:250</code>)</td><td><strong>eliminated</strong></td><td><code>Option&lt;Group&gt;</code>, <code>NonZeroU32</code> niche, 4 bytes (verified)</td></tr>
+<tr><td style="text-align: right">41</td><td><code>edge(s,t,g)</code> returns a <code>{max,max,max}</code> descriptor equal to every other failure (<code>:943</code>)</td><td><strong>eliminated</strong></td><td><code>find_edge -&gt; Option&lt;EdgeRef&gt;</code></td></tr>
+<tr><td style="text-align: right">42</td><td><code>edge_descriptor</code> equality ignores endpoints; <code>reverse_edge</code> mutates in place (<code>:196</code>, <code>:571</code>)</td><td><strong>eliminated</strong></td><td>no <code>Eq</code>/<code>Hash</code> on <code>EdgeRef</code> (verified <code>error[E0369]</code>, <code>error[E0599]</code>); <code>reversed()</code> returns a value</td></tr>
+<tr><td style="text-align: right">43</td><td><code>put(UnityPropertyMap, ...)</code> silently discards writes (<code>graph_properties.hh:714</code>), 74 call sites</td><td><strong>eliminated</strong></td><td><code>Unity</code> implements <code>ReadProp</code> only → <code>error[E0599]</code> (verified)</td></tr>
+<tr><td style="text-align: right">44</td><td><code>graph_selectors.hh:109, :178</code> read <code>weight.c</code> on a class whose member is private <code>_c</code>; both overloads are dead</td><td><strong>eliminated</strong></td><td><code>Constant { pub c: T }</code></td></tr>
+<tr><td style="text-align: right">45</td><td><code>is_unity_map&lt;ConvertedPropertyMap&lt;UnityPropertyMap&lt;..&gt;&gt;&gt;</code> is false, silently losing the fast path</td><td><strong>eliminated</strong></td><td>conversion wrappers forward <code>IS_UNITY</code>/<code>IS_CONSTANT</code></td></tr>
+<tr><td style="text-align: right">46</td><td><code>check_epos</code> exists and every call site is commented out (<code>:686</code>, <code>:1206</code>, <code>:1289</code>, <code>:1433</code>)</td><td><strong>eliminated</strong></td><td><code>validate()</code> under <code>debug_assertions</code>, checking <strong>both</strong> halves</td></tr>
+<tr><td style="text-align: right">47</td><td>a subset’s member list and its dispatch scan are independent artifacts that can drift</td><td><strong>eliminated</strong></td><td>one token list generates both; transposition is <code>error[E0080]</code> (verified)</td></tr>
+<tr><td style="text-align: right">48</td><td><code>DispatchNotFound</code> cannot distinguish a user type error from a codegen hole (<code>dispatch.hh:86-88</code>)</td><td><strong>partial</strong></td><td>views are exhaustive (<code>error[E0004]</code>); a <em>value</em> subset necessarily ends in <code>_ =&gt; Err</code>, so a 16th <code>ValueKind</code> is a runtime error where no subset lists it. Mitigated by the <code>every_value_kind_is_reachable_from_some_subset</code> test</td></tr>
+<tr><td style="text-align: right">49</td><td><code>long double</code> precision</td><td><strong>partial</strong></td><td><code>LongDouble([u8;16])</code> round-trips <code>.gt</code> and the type name; arithmetic unavailable, and the <code>Scalar</code> bound says so</td></tr>
+<tr><td style="text-align: right">50</td><td><code>EdgeId</code> ABA after free-list recycling: an id held across remove+add names a different edge</td><td><strong>still possible</strong></td><td>inherited deliberately; a generation counter would break the 4-words-per-edge layout. <code>gt-core/id-generations</code> adds a debug-build side table</td></tr>
+<tr><td style="text-align: right">51</td><td>concurrent <em>graph</em> mutation (<code>set_concurrent</code>, <code>:451</code>)</td><td><strong>changed</strong></td><td><code>&amp;mut AdjList</code> refuses it; <code>ParBuilder</code> replaces the bulk case deterministically. Incremental concurrent <code>add_edge</code> is <strong>not</strong> supported</td></tr>
+<tr><td style="text-align: right">52</td><td>adjacency order after removals</td><td><strong>changed</strong></td><td>swap-with-back, not erase-and-shift. <code>gt-io</code> emits in <code>EdgeId</code> order so round-trips stay reproducible</td></tr>
+<tr><td style="text-align: right">53</td><td>the inference second dispatch layer (<code>GEN_DISPATCH</code>, name-indexed resolved types, <code>graph_state.hh:203-256</code>)</td><td><strong>not designed</strong></td><td>~13 000 of the ~35 000 leaves. Open item, §10</td></tr>
+</tbody></table>
+</div>
+<hr />
+<h3 id="15-what-is-still-open"><a class="doc-anchor" href="#15-what-is-still-open">§</a>15. What is still open</h3>
+<ol>
+<li><strong>The <code>GEN_DISPATCH</code> second layer</strong> (§10, row 53). <code>all_types_func_wrap</code>
+indexes resolved types <strong>by parameter name</strong>; <code>PropValue::Elem</code> solves only
+the positional case. Likely a generated struct of associated types.</li>
+<li><strong>Heterogeneous coupled states.</strong> <code>coupled_state_t</code> (<code>state.hh:110</code>) is a
+<code>std::variant</code> over pointers to <em>differently instantiated</em> states. A
+homogeneous <code>Vec&lt;S&gt;</code> covers the nested SBM only; layered/overlap/weighted
+need an enum (combinatorial) or <code>Box&lt;dyn CoupledLevel&gt;</code> (a virtual call per
+level per move — small against O(#entries) work, but not zero).</li>
+<li><strong>Whether a 32-bit count type is worth a second <code>Weight</code> impl.</strong> <code>Entry&lt;i64&gt;</code>
+is 32 bytes; <code>Entry&lt;i32&gt;</code> would be 16, i.e. two per cache line in the
+<code>entries_op</code> loop.</li>
+<li><strong>Vectorising the reductions</strong> (§12) once <code>core::simd</code> stabilises, and
+whether it can be done without reintroducing nondeterminism.</li>
+<li><strong>Property-map storage across FFI.</strong> C++ hands <code>std::vector&lt;T&gt;&amp;</code> to
+Boost.Python directly (<code>fast_vector_property_map.hh:224</code>). A numpy view over
+<code>DenseProp</code>’s <code>Vec&lt;T&gt;</code> reintroduces the aliasing <code>&amp;mut</code> was protecting: a
+Python-side array view outliving a <code>sized_for</code> resize. This is where the
+remaining <code>unsafe</code> would accumulate and it needs a designed answer.</li>
+<li><strong>Whether <code>EHash</code> should ship at all</strong>, or whether <code>find_edge</code>’s
+shorter-half scan is enough in practice. Shipping it doubles the
+<code>AdjList</code> monomorphisations reachable from generic kernels.</li>
+<li><strong>Measuring one fat module</strong> (<code>graph_properties.cc</code>, ~1 090 leaves by the
+census) against its C++ translation unit, before the five-crate split is
+called final.</li>
+</ol>
+<hr />
+<h3 id="16-testing-discipline-this-port-requires"><a class="doc-anchor" href="#16-testing-discipline-this-port-requires">§</a>16. Testing discipline this port requires</h3>
+<p>Every source design said “verified by compiling it” and, in most cases, the
+compiled artifact contained a defect the design’s own claims denied. The
+sharpest example: one crate’s <code>ln_gamma</code> was stubbed to <code>x.ln()</code>, no test
+asserted a number, and the pricing path was wrong on <strong>194 of 269</strong> moves —
+because the <code>emat</code> was keyed on an unordered pair while lookup canonicalised to
+<code>(min, max)</code>. It compiled, it passed its four tests, and it was 72% wrong.</p>
+<p>So: <em>it compiles</em> is not evidence. Required from the first implementation unit:</p>
+<ul>
+<li><strong>proptest</strong>, model-based, against a naive reference — for <code>AdjList</code>
+(add/remove/clear/swap_remove sequences, <code>validate()</code> after every op, in-half
+cross-checked against the model) and for the SBM (random moves priced against
+a from-scratch entropy with a <em>real</em> <code>lgamma</code>).</li>
+<li><strong>trybuild</strong> compile-fail fixtures pinning every negative guarantee in §14.
+The six verified in this document must become fixtures, or they will regress
+silently the first time someone adds a blanket impl.</li>
+<li><strong>criterion</strong> from day one: the ledger in §12 has numbers in it, and numbers
+rot.</li>
+<li><strong>codegen assertions</strong> on the hot loops: no <code>panic_bounds_check</code>, no
+<code>__rust_alloc</code>, in the disassembly of the named kernels.</li>
+<li><strong>differential testing against graph-tool itself</strong>, on real graphs, with real
+numbers. Nothing in §14 is settled until the two implementations agree.</li>
+</ul>
+</div></details></section></div></main></body></html>

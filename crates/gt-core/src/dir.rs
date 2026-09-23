@@ -1,7 +1,7 @@
 //! Directedness as a type.
 //!
 //! Three designs disagreed about how to spell this and each spelling was
-//! load-bearing for a different result (DESIGN.md D4):
+//! load-bearing for a different result ([DESIGN](crate::design) D4):
 //!
 //! * a bare `const DIRECTED: bool` on the graph trait cannot carry an
 //!   associated *field set*, which is what lets an undirected delta buffer

@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Centrality measures."><title>gt_algo::centrality - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_algo" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module centrality</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_algo/index.html">gt_algo</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module centrality</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#what-this-module-fixes-and-why" title="What this module fixes, and why">What this module fixes, and why</a></li><li><a href="#determinism" title="Determinism">Determinism</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>algo</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_algo</a></div><h1>Module <span>centrality</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_algo/centrality.rs.html#1-689">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Centrality measures.</p>
+<p>Three kernels, ported from <code>src/graph/centrality/</code>:</p>
+<ul>
+<li><a href="fn.pagerank.html" title="fn gt_algo::centrality::pagerank"><code>pagerank</code></a> – <code>graph_pagerank.hh:30-100</code>;</li>
+<li><a href="fn.eigenvector.html" title="fn gt_algo::centrality::eigenvector"><code>eigenvector</code></a> – <code>graph_eigenvector.hh:41-99</code>;</li>
+<li><a href="fn.betweenness.html" title="fn gt_algo::centrality::betweenness"><code>betweenness</code></a> – <code>graph_betweenness.cc:70-94</code>, which delegates to the
+vendored Brandes in
+<code>src/boost-workaround/boost/graph/betweenness_centrality.hpp:296-388</code>.</li>
+</ul>
+<h3 id="what-this-module-fixes-and-why"><a class="doc-anchor" href="#what-this-module-fixes-and-why">§</a>What this module fixes, and why</h3>
+<p>Four defects are corrected here rather than reproduced. Each is a silent
+wrong <em>number</em>, not a crash, which is why none of them shows up in
+graph-tool’s own test suite.</p>
+<ol>
+<li><strong>The odd-iteration writeback is inverted</strong> in both power iterations
+(<code>graph_pagerank.hh:90-98</code>, <code>graph_eigenvector.hh:94-95</code>). The loop
+maintains the invariant “<code>rank</code> names the latest iterate” by swapping
+two property-map <em>handles</em> at <code>:84</code>; the caller’s storage is the one
+<code>r_temp</code> names after an odd number of swaps. The fixup then runs
+<code>put(rank, v, get(r_temp, v))</code> – it copies the caller’s stale storage
+over the fresh scratch and leaves the caller holding the
+second-to-last iterate. Convergence hides it (the last two iterates
+differ by less than <code>epsilon</code> in L1 by construction) but truncation by
+<code>max_iter</code> does not. Here the two buffers are ordinary <code>&amp;mut [f64]</code>
+bindings and the final copy, when parity calls for one, goes <em>into</em>
+the caller’s map.</li>
+<li><strong>Division by a zero weighted out-degree.</strong> <code>graph_pagerank.hh:77</code>
+computes <code>rank[s] * weight[e] / deg[s]</code> for every predecessor <code>s</code>
+without checking <code>deg[s]</code>. A vertex whose out-edges all carry weight
+zero is pushed onto <code>sinks</code> at <code>:50</code> – so its mass is <em>already</em>
+redistributed through <code>p_sink</code> – and is nevertheless divided by at
+<code>:77</code>, producing <code>inf</code> or <code>NaN</code> that poisons the whole vector. Here a
+zero weighted out-degree contributes nothing, which is the only
+reading consistent with <code>:49-50</code>. With a unity weight map the test is
+unobservable (<code>deg[s] == 0</code> implies <code>s</code> has no out-edges, so <code>s</code> is
+never a predecessor) and const-folds away.</li>
+<li><strong>Division by a zero norm.</strong> <code>graph_eigenvector.hh:83</code> divides by
+<code>sqrt(norm)</code> unconditionally, so a graph with no edges – or one whose
+iterate has collapsed to zero – returns a vector of <code>NaN</code>. Here a
+zero norm leaves the iterate alone.</li>
+<li><strong>The Brandes distance map is never reset between sources</strong>
+(<code>betweenness_centrality.hpp:341-349</code>: <code>vincoming</code>, <code>vpath_count</code> and
+<code>vdependency</code> are cleared per source, <code>vdistance</code> is not, and the BFS
+visitor at <code>:183-191</code> only ever <em>writes</em> <code>distance[w]</code> for a tree
+edge, never for the root). The root keeps whatever distance the
+previous source’s BFS left there, so <code>non_tree_edge</code> (<code>:199-209</code>) can
+match <code>distance[s] == distance[v] + 1</code> on an edge pointing back at the
+source, push it into <code>incoming[s]</code>, and corrupt both <code>path_count[s]</code>
+and the dependency accumulation. Here every BFS sets <code>dist[s] = 0</code>.</li>
+</ol>
+<h3 id="determinism"><a class="doc-anchor" href="#determinism">§</a>Determinism</h3>
+<p>Every reduction in this module folds in a fixed order, so the result is a
+function of the input and the [<code>Plan</code>] and of nothing else – not the
+worker count, not the steal order. <code>p_sink</code> goes through
+<a href="gt_core::par::det_reduce"><code>det_reduce</code></a> directly; the vertex sweeps use
+[<code>sweep</code>], which is <code>det_reduce</code>’s discipline for the case <code>det_reduce</code>
+cannot express (its <code>map</code> is an <code>Fn</code>, so no chunk can hold a <code>&amp;mut</code> into
+the output). graph-tool reduces <code>delta</code>, <code>norm</code> and <code>p_sink</code> under
+<code>reduction(+:...)</code> (<code>graph_pagerank.hh:62, :68</code>,
+<code>graph_eigenvector.hh:60, :78</code>) and the betweenness accumulation under
+<code>#pragma omp atomic</code> (<code>betweenness_centrality.hpp:275-278</code>); all four are
+reassociated by the schedule, so the low bits move with
+<code>OMP_NUM_THREADS</code>.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.PowerIteration.html" title="struct gt_algo::centrality::PowerIteration">Power<wbr>Iteration</a></dt><dd>Parameters for a power-iteration centrality.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.betweenness.html" title="fn gt_algo::centrality::betweenness">betweenness</a></dt><dd>Betweenness centrality (Brandes).</dd><dt><a class="fn" href="fn.eigenvector.html" title="fn gt_algo::centrality::eigenvector">eigenvector</a></dt><dd>Eigenvector centrality.</dd><dt><a class="fn" href="fn.pagerank.html" title="fn gt_algo::centrality::pagerank">pagerank</a></dt><dd>PageRank.</dd><dt><a class="fn" href="fn.pagerank_with.html" title="fn gt_algo::centrality::pagerank_with">pagerank_<wbr>with</a></dt><dd>PageRank with a personalisation vector.</dd></dl></section></div></main></body></html>

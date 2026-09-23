@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["DynWrap","ReadOnlyAdaptor","ReadWriteAdaptor","Refusing","WriteOnlyAdaptor"],"trait":["DynProp"]};

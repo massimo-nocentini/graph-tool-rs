@@ -1,4 +1,4 @@
-//! DESIGN.md §7, mechanism 3 — the load-bearing one, and defect #30.
+//! `gt_core::design` §7, mechanism 3 — the load-bearing one, and defect #30.
 //!
 //! `pyo3::Py<T>` is unconditionally `Send + Sync`
 //! (`pyo3-0.22.6/src/instance.rs:943-944`), and both its `Clone` and its

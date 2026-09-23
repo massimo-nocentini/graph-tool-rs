@@ -64,7 +64,7 @@ pub const UNLABELED: i64 = -1;
 /// Panic message for the one failure `sized_for` can report here. The bound
 /// comes from `g` itself, so the only way to reach it is to pass a map minted
 /// for a *different* graph --- a caller error, not a runtime condition, and
-/// the one `GraphId` comparison of DESIGN.md D-`Bound` exists to catch it.
+/// the one `GraphId` comparison of [DESIGN](gt_core::design) D-`Bound` exists to catch it.
 const WRONG_GRAPH: &str = "the label map belongs to a different graph";
 
 /// Label each vertex with its component.

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["blockmodel","delta","ids","metropolis","spec"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":[["value_subset",1]],"mod":["adj","bound","design","dir","error","graph","ids","implementation_plan","par","prop","view"]};

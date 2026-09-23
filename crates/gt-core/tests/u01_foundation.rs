@@ -2,21 +2,21 @@
 //!
 //! Nothing in `ids.rs`, `dir.rs`, `bound.rs`, `error.rs` or `graph.rs` has a
 //! body to write; what they have is a set of *guarantees* that every later unit
-//! silently assumes. DESIGN.md §16 is blunt about what happens when those are
+//! silently assumes. `gt_core::design` §16 is blunt about what happens when those are
 //! taken on trust ("one crate's `ln_gamma` was stubbed to `x.ln()` [...] it
 //! compiled, it passed its four tests, and it was 72% wrong"), so this file
 //! turns each guarantee into an assertion:
 //!
-//! * **layout** — the widths DESIGN.md §11 tabulates against graph-tool's own
+//! * **layout** — the widths `gt_core::design` §11 tabulates against graph-tool's own
 //!   (`AdjEntry` 8 vs 16, a view 8, `Option<GraphId>` 8 with no sentinel);
 //! * **totality** — `Field<D>` names every one of `D::N_FIELDS` half-fields and
 //!   nothing else, which is the property defect #4's `_dummy` cell lacks;
 //! * **uniqueness** — `GraphId::fresh` across 10 000 calls and across threads;
-//! * **the view algebra** — the normalisation table verified in DESIGN.md D3,
+//! * **the view algebra** — the normalisation table verified in `gt_core::design` D3,
 //!   re-checked here by `TypeId` so a lost `Undirect for Rev<G>` impl cannot
 //!   quietly reintroduce `Und<Rev<_>>`;
 //! * **the negative guarantees** — seven `trybuild` fixtures under `tests/ui`,
-//!   each pinning one diagnostic quoted in DESIGN.md §14. Those are the claims
+//!   each pinning one diagnostic quoted in `gt_core::design` §14. Those are the claims
 //!   that regress silently: adding one blanket impl turns a compile error into
 //!   graph-tool's original behaviour with nothing to notice it.
 
@@ -70,7 +70,7 @@ type U = Und<&'static AdjList>;
 type R = Rev<&'static AdjList>;
 
 // ===========================================================================
-// 1. Identifier layout and width (D5, DESIGN.md §11)
+// 1. Identifier layout and width (D5, `gt_core::design` §11)
 // ===========================================================================
 
 /// `Id<T>` is `#[repr(transparent)]` over `Raw` and the tag is a
@@ -171,7 +171,7 @@ fn debug_names_the_space() {
 // 2. `GraphId` — uniqueness, which is what makes defect #8 a caught error
 // ===========================================================================
 
-/// DESIGN.md §11 lists `Option<Group>` at 4 bytes against graph-tool's
+/// `gt_core::design` §11 lists `Option<Group>` at 4 bytes against graph-tool's
 /// `int64_t` + a hand-checked `null_group = INT64_MAX` sentinel. `GraphId` is
 /// the same trick one level up: `NonZeroU64` means `Option<GraphId>` needs no
 /// reserved value and no ~30 hand-written comparisons (`entries.hh:250`).
@@ -353,7 +353,7 @@ fn owners_carry_directedness_and_wrapping_an_arc_is_free() {
 // 5. The view algebra (D3) — the normalisation table, re-checked
 // ===========================================================================
 
-/// DESIGN.md D3 records this table as "verified by `std::any::type_name` on a
+/// gt_core::design D3 records this table as "verified by `std::any::type_name` on a
 /// real build". A table in a document is not a test: deleting
 /// `impl Undirect for Rev<G>` reintroduces `Und<Rev<_>>`, which compiles, runs,
 /// and is one of the duplicates `hana::to<set_tag>` (`graph_filtering.hh:129`)
@@ -386,7 +386,7 @@ fn the_view_algebra_normalises() {
 }
 
 /// Every view method takes `self` by value and every view is `Copy`, so the
-/// adaptor chain collapses to one pointer after inlining (DESIGN.md §11).
+/// adaptor chain collapses to one pointer after inlining (`gt_core::design` §11).
 #[test]
 fn a_view_is_one_pointer() {
     assert_eq!(size_of::<D>(), size_of::<usize>());
@@ -461,7 +461,7 @@ fn the_trait_matrix_has_the_hole_it_is_supposed_to_have() {
     // `ExactIncidence` is the refinement unfiltered views implement and
     // per-edge-filtered ones cannot, since they would have to count.
     assert_exact_incidence::<D>();
-    // NOTE(U3): `graph.rs`'s own module docs and DESIGN.md §11 say the
+    // NOTE(U3): `graph.rs`'s own module docs and `gt_core::design` §11 say the
     // undirected and reversed views implement it too -- and they can, since
     // `IncidentIter` is `ExactSizeIterator` -- but `view/undirected.rs` and
     // `view/reversed.rs` carry no impl yet. The two lines below belong here
@@ -597,10 +597,10 @@ fn errors_are_values_not_exceptions() {
 }
 
 // ===========================================================================
-// 7. The negative guarantees (DESIGN.md §14)
+// 7. The negative guarantees (`gt_core::design` §14)
 // ===========================================================================
 
-/// Each fixture pins one diagnostic that DESIGN.md §14 claims to have verified.
+/// Each fixture pins one diagnostic that `gt_core::design` §14 claims to have verified.
 /// They are the claims that regress *silently*: a blanket impl, a `pub` on a
 /// constructor or a relaxed bound turns a compile error back into graph-tool's
 /// original runtime behaviour, and nothing else in the suite would notice.

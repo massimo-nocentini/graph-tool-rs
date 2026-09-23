@@ -1,6 +1,6 @@
 //! gt-algo kernels, measured through the crate edge.
 //!
-//! DESIGN.md section 10 justifies `lto = "fat"` and `codegen-units = 1` in the
+//! gt_core::design section 10 justifies `lto = "fat"` and `codegen-units = 1` in the
 //! release profile on the grounds that the hot paths cross crate boundaries by
 //! construction: every kernel here is generic over gt-core's `GraphRef`, and
 //! without cross-crate inlining each `Incident` manufacture is a call. That

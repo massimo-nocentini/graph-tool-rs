@@ -19,7 +19,7 @@
 //! and this one would otherwise go quiet without going red.
 //!
 //! The rest is the surface a kernel sees: the trait split, the ZST claims, the
-//! four `trybuild` diagnostics, and DESIGN.md §12's two opposite codegen
+//! four `trybuild` diagnostics, and `gt_core::design` §12's two opposite codegen
 //! claims.
 
 use std::path::PathBuf;
@@ -265,7 +265,7 @@ fn the_unwritable_maps_still_refuse_to_compile_a_write() {
 }
 
 // ===========================================================================
-// 5. The codegen assertion (DESIGN.md §12)
+// 5. The codegen assertion (`gt_core::design` §12)
 // ===========================================================================
 //
 // The ledger claims two things about property access and they are opposite
@@ -373,7 +373,7 @@ fn a_scan_through_as_slice_has_no_bounds_check() {
     assert!(
         !asm.contains("panic_bounds_check"),
         "PropSlice::as_slice().iter() left a bounds check in the loop; \
-         DESIGN.md §12 calls this the bounds-check-free path"
+         gt_core::design §12 calls this the bounds-check-free path"
     );
 
     // The same must hold for the writable view's bulk path, which is what a
@@ -413,7 +413,7 @@ fn a_per_key_scatter_keeps_its_bounds_check() {
         "the per-key scatter has no bounds check. That is not a win to be \
          celebrated: `put` is a checked index, so either this probe is not \
          measuring the scatter path or the check has been removed by something \
-         that should be looked at. DESIGN.md §12 records the check as an \
+         that should be looked at. `gt_core::design` §12 records the check as an \
          accepted cost (D11)."
     );
 }

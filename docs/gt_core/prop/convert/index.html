@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Conversion between members of the value universe."><title>gt_core::prop::convert - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module convert</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../gt_core/index.html">gt_core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module convert</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#why-from-cannot-serve-design-d7" title="Why `From` cannot serve (DESIGN D7)">Why <code>From</code> cannot serve (DESIGN D7)</a></li><li><a href="#the-nm-collapse" title="The N+M collapse">The N+M collapse</a></li><li><a href="#where-this-deliberately-does-not-follow-the-c" title="Where this deliberately does not follow the C++">Where this deliberately does not follow the C++</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In gt_<wbr>core::<wbr>prop</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">gt_core</a>::<wbr><a href="../index.html">prop</a></div><h1>Module <span>convert</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/gt_core/prop/convert.rs.html#1-687">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Conversion between members of the value universe.</p>
+<h3 id="why-from-cannot-serve-design-d7"><a class="doc-anchor" href="#why-from-cannot-serve-design-d7">§</a>Why <code>From</code> cannot serve (<a href="../../design/index.html" title="mod gt_core::design">DESIGN</a> D7)</h3>
+<p><code>value_convert.hh:135</code> handles <code>is_vector_v&lt;To&gt; &amp;&amp; is_vector_v&lt;From&gt;</code>, and
+<code>prop_map_as</code> narrows as well as widens. Both
+<code>impl From&lt;Vec&lt;i32&gt;&gt; for Vec&lt;i64&gt;</code> and <code>impl From&lt;f64&gt; for i32</code> are
+<code>error[E0117]</code> from <em>any</em> crate, since <code>Vec</code> and the primitives are all
+foreign. A design bounded on <code>U: From&lt;P::Value&gt;</code> therefore buys exactly
+std’s widening scalar conversions and nothing else. <a href="trait.ConvertFrom.html" title="trait gt_core::prop::convert::ConvertFrom"><code>ConvertFrom</code></a> is
+crate-local, so every pair in the real lattice is implementable.</p>
+<h3 id="the-nm-collapse"><a class="doc-anchor" href="#the-nm-collapse">§</a>The N+M collapse</h3>
+<p><code>prop_map_as</code> (<code>graph_properties.cc:69-87</code>) crosses two 30-wide
+property-map ranges: 900 instantiations, which then run a
+<code>std::is_same_v&lt;decltype(map), decltype(tgt)&gt;</code> check at runtime to discover
+that 30 of them are the identity. Here the 15 diagonal cases stay
+monomorphic and fast, and the 210 off-diagonal ones route through
+<a href="enum.AnyValue.html" title="enum gt_core::prop::convert::AnyValue"><code>AnyValue</code></a>: 15 <code>to_any</code> plus 15 <code>from_any</code>, i.e. 30 monomorphisations in
+place of 225 pairwise <code>convert&lt;S, T&gt;</code>. The cost is an intermediate
+allocation on the off-diagonal path, which is cold.</p>
+<p>The single blanket <code>impl&lt;S: ToAny, T: FromAny&gt; ConvertFrom&lt;S&gt; for T</code> is what
+makes that true: <code>convert_from</code> is <code>#[inline]</code> and its body is two
+const-folded guards over <code>S::KIND</code> and <code>T::KIND</code> around a call into the two
+erasure functions, so nothing pairwise survives codegen. Measured on the
+release build of <code>tests/u33_convert.rs</code>, which instantiates all 196
+non-Python ordered pairs: <strong>0</strong> <code>to_any</code>, <strong>7</strong> <code>from_any</code> and <strong>0</strong>
+<code>convert_from</code> symbols survive, against the 900 leaves <code>prop_map_as</code> emits.</p>
+<h3 id="where-this-deliberately-does-not-follow-the-c"><a class="doc-anchor" href="#where-this-deliberately-does-not-follow-the-c">§</a>Where this deliberately does <em>not</em> follow the C++</h3>
+<p><code>convert</code> (<code>value_convert.hh:73-200</code>) tries, in order: identity;
+<code>To == python::object</code>; <code>From == python::object</code>; <code>From == string &amp;&amp; is_scalar_v&lt;To&gt;</code>; <code>To == string &amp;&amp; is_scalar_v&lt;From&gt;</code>;
+<code>is_convertible_v&lt;From, To&gt;</code>; elementwise for vector-to-vector; then
+<code>convert_dispatch</code>, which throws. Two rows of that lattice are answered
+differently here, both on purpose:</p>
+<ul>
+<li><strong><code>long double</code>.</strong> <code>std::is_scalar_v&lt;long double&gt;</code> is true, so the C++
+converts it to and from every scalar, to <code>std::string</code>, and elementwise
+inside <code>vector&lt;long double&gt;</code>. <a href="../value/struct.LongDouble.html" title="struct gt_core::prop::value::LongDouble"><code>LongDouble</code></a> is an opaque 16-byte payload
+with no arithmetic (<a href="../../design/index.html" title="mod gt_core::design">DESIGN</a> D7) precisely so that a value graph-tool
+wrote is handed back byte-for-byte rather than routed through an <code>f64</code>
+that cannot hold it. So <code>long double</code> and <code>vector&lt;long double&gt;</code> convert
+only to themselves; every other pair is
+<a href="../../error/enum.PropError.html#variant.NoConversion" title="variant gt_core::error::PropError::NoConversion"><code>NoConversion</code></a>. <a href="fn.convertible.html" title="fn gt_core::prop::convert::convertible"><code>convertible</code></a> says so
+statically, at compile time, which the C++ <code>is_convertible_v</code> also does —
+it simply answers <code>true</code>.</li>
+<li><strong>Out-of-range float-to-integer.</strong> <code>is_convertible_v&lt;double, int16_t&gt;</code>
+selects <code>To(v)</code> at <code>value_convert.hh:127</code>, i.e. a <code>static_cast</code>, and a
+<code>double</code> outside the destination’s range makes that <strong>undefined
+behaviour</strong>. Rust’s <code>as</code> saturates, and this port keeps the saturation:
+<code>1e30_f64</code> becomes <code>i16::MAX</code>, not whatever <code>cvttsd2si</code> happened to
+leave behind. Integer-to-integer narrowing is <em>not</em> a divergence — both
+languages wrap modulo 2^N.</li>
+</ul>
+<p>Everything else is matched pair by pair, including the two <code>uint8_t</code>
+detours at <code>value_convert.hh:112-116</code> and <code>:120-124</code>, which route the
+“bool” member through <code>int</code> so that it prints as <code>"1"</code> rather than as a
+control character.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.PyCell.html" title="struct gt_core::prop::convert::PyCell">PyCell</a></dt><dd>Opaque slot for the Python member inside <a href="enum.AnyValue.html" title="enum gt_core::prop::convert::AnyValue"><code>AnyValue</code></a>.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.AnyValue.html" title="enum gt_core::prop::convert::AnyValue">AnyValue</a></dt><dd>A normalised carrier for cross-type property conversion.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.ConvertFrom.html" title="trait gt_core::prop::convert::ConvertFrom">Convert<wbr>From</a></dt><dd>Lossy or lossless conversion within the value universe.</dd><dt><a class="trait" href="trait.FromAny.html" title="trait gt_core::prop::convert::FromAny">FromAny</a></dt><dd>Recover a value from the carrier.</dd><dt><a class="trait" href="trait.ToAny.html" title="trait gt_core::prop::convert::ToAny">ToAny</a></dt><dd>Erase a value into the carrier.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.convertible.html" title="fn gt_core::prop::convert::convertible">convertible</a></dt><dd>Whether a conversion between these two members exists at all.</dd></dl></section></div></main></body></html>

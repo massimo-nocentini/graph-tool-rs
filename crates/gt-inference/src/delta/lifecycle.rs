@@ -1,6 +1,6 @@
 //! The typestate of a transition: record, seal, price, commit, audit.
 //!
-//! ## Why `commit` consumes a *level*, not a transition (DESIGN.md D10)
+//! ## Why `commit` consumes a *level*, not a transition ([DESIGN](gt_core::design) D10)
 //!
 //! Making `commit(&mut self, t: Transition)` take the whole transition by
 //! value does buy one thing -- replaying a delta twice is a move error, where

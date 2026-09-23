@@ -22,13 +22,13 @@ default = []
 ## Enables `prop::value::PyValue` (the 15th member of the value universe).
 python     = ["dep:pyo3"]
 ## Widen VertexId/EdgeId from u32 to u64 for >4.29e9-vertex graphs.
-## Whole-build switch, never a type parameter: see DESIGN.md D5.
+## Whole-build switch, never a type parameter: see gt_core::design D5.
 wide-index = []
 ## Side table of generation counters, catching EdgeId ABA after recycling.
 id-generations = []
 
 # ---------------------------------------------------------------------------
-# Test harness (DESIGN.md section 16). The model-based `proptest` over
+# Test harness (gt_core::design section 16). The model-based `proptest` over
 # AdjList mutation sequences and the trybuild fixtures for the negative
 # guarantees in section 14 are the two things that keep "it compiles" from
 # being mistaken for evidence.

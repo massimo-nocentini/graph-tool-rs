@@ -1,0 +1,45 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Multi-accumulator summation over a slice."><title>chunked_sum in gt_core::par::reduce - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="gt_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">chunked_sum</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../gt_core/index.html">gt_core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">chunked_<wbr>sum</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-cost-nobody-else-costed-design-section-12" title="The cost nobody else costed (DESIGN section 12)">The cost nobody else costed (DESIGN section 12)</a></li><li><a href="#what-the-ledger-records-measured" title="What the ledger records, measured">What the ledger records, measured</a></li><li><a href="#exact-association-order" title="Exact association order">Exact association order</a></li><li><a href="#accuracy" title="Accuracy">Accuracy</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In gt_<wbr>core::<wbr>par::<wbr>reduce</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">gt_core</a>::<wbr><a href="../index.html">par</a>::<wbr><a href="index.html">reduce</a></div><h1>Function <span class="fn">chunked_<wbr>sum</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/gt_core/par/reduce.rs.html#167-191">Source</a> </span></div><pre class="rust item-decl"><code>pub fn chunked_sum&lt;const LANES: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.usize.html">usize</a>&gt;(xs: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a>]) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.f64.html">f64</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Multi-accumulator summation over a slice.</p>
+<h3 id="the-cost-nobody-else-costed-design-section-12"><a class="doc-anchor" href="#the-cost-nobody-else-costed-design-section-12">§</a>The cost nobody else costed (<a href="../../design/index.html" title="mod gt_core::design">DESIGN</a> section 12)</h3>
+<p><code>#pragma omp parallel for reduction(+:S)</code> (e.g. <code>potts/spec.hh:133, :143</code>)
+<em>licenses reassociation</em>, so GCC may vectorise the accumulation. Rust’s
+<code>f64 +=</code> does not, and measurement confirms it: a plain serial scan emits
+<code>addsd</code>, never <code>addpd</code>. Five of the six source designs presented
+entropy-sum performance as parity-or-better without mentioning this.</p>
+<p>This function is where the port pays it back: <code>LANES</code> independent
+accumulators folded at the end, which restores instruction-level
+parallelism.</p>
+<h3 id="what-the-ledger-records-measured"><a class="doc-anchor" href="#what-the-ledger-records-measured">§</a>What the ledger records, measured</h3>
+<p>An earlier reading of §12 also claimed a four-accumulator hand-unroll
+emits only <code>addsd</code>. It does not, and §12 no longer says so: on this
+toolchain <code>chunked_sum::&lt;4&gt;</code> compiles to <code>addpd</code>. There is no
+contradiction with the first half of the paragraph — a <em>serial</em> fold
+genuinely cannot vectorise, because packing it would reassociate it — but
+<code>LANES</code> independent accumulators fed from consecutive slots are a packed
+add <em>at the same association order</em>, so the SLP vectoriser is allowed to
+take it and does. SIMD is recovered here without any of the licence
+<code>reduction(+:S)</code> needs.</p>
+<p>That changes the size of the loss, not its existence: graph-tool still
+gets to reassociate a loop this one may not, and explicit lane control
+waits for <code>core::simd</code>.
+<code>tests/u11_reduce.rs::the_ledger_records_whether_chunked_sum_vectorises</code>
+asserts only what is guaranteed (a serial scan never packs) and prints
+what it found, because a ledger entry that tests itself is the only kind
+that stays true.</p>
+<h3 id="exact-association-order"><a class="doc-anchor" href="#exact-association-order">§</a>Exact association order</h3>
+<p>Lane <code>i</code> accumulates <code>xs[i], xs[i + LANES], xs[i + 2*LANES], …</code> in index
+order; the <code>xs.len() % LANES</code> trailing elements go to lanes <code>0 ..r</code> in the
+same way; the lanes are then folded <code>0.0 + a0 + a1 + … </code> in lane order.
+This is a pure function of <code>(xs, LANES)</code>, so unlike <code>reduction(+:S)</code> it
+cannot change with the thread count, the schedule or the compiler’s mood.
+<code>chunked_sum::&lt;1&gt;</code> is therefore bit-identical to the naive left-to-right
+scan, by construction.</p>
+<h3 id="accuracy"><a class="doc-anchor" href="#accuracy">§</a>Accuracy</h3>
+<p>Each lane commits at most <code>⌈n / LANES⌉</code> roundings and the final fold adds
+<code>LANES - 1</code> more, so against an exactly-rounded sum the error is bounded by
+roughly <code>(n / LANES + LANES) · ε · Σ|xᵢ|</code> — i.e. <code>LANES</code> accumulators are
+not merely faster than one, they are <em>more</em> accurate, because each
+dependency chain is shorter. The <code>u11_reduce</code> test pins this against a
+Kahan sum. It is not, and does not claim to be, compensated summation:
+callers needing that should say so.</p>
+<p>Panics at compile time (monomorphisation) if <code>LANES == 0</code>.</p>
+</div></details></section></div></main></body></html>

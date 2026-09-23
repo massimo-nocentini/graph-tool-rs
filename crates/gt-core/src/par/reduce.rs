@@ -110,7 +110,7 @@ where
 
 /// Multi-accumulator summation over a slice.
 ///
-/// ## The cost nobody else costed (DESIGN.md section 12)
+/// ## The cost nobody else costed ([DESIGN](crate::design) section 12)
 ///
 /// `#pragma omp parallel for reduction(+:S)` (e.g. `potts/spec.hh:133, :143`)
 /// *licenses reassociation*, so GCC may vectorise the accumulation. Rust's

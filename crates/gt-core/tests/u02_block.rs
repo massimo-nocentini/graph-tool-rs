@@ -2,7 +2,7 @@
 //!
 //! Two things are asserted here and nowhere else:
 //!
-//! * **the layout numbers of DESIGN.md section 11**, literally. `AdjEntry` at
+//! * **the layout numbers of `gt_core::design` section 11**, literally. `AdjEntry` at
 //!   8 bytes against `pair<vertex_t, vertex_t>` at 16, and `Block` at 32
 //!   against `pair<size_t, vector<pair<size_t,size_t>>>`, are the whole of the
 //!   "2x on the adjacency stream" claim in section 12. A `usize` that crept
@@ -18,13 +18,13 @@
 //!
 //! The splice sequences live in `src/adj/block.rs`'s own test module:
 //! `insert_out`, `insert_in` and `remove_at` are `pub(crate)` because
-//! DESIGN.md section 3 makes mutation "exactly two private primitives", and
+//! gt_core::design section 3 makes mutation "exactly two private primitives", and
 //! that encapsulation is worth more than the convenience of reaching them from
 //! here.
 
 use gt_core::adj::{Block, EdgeIds, End};
 // The layout assertions below are `#[cfg(not(feature = "wide-index"))]`: the
-// numbers in DESIGN.md section 11 are the 32-bit-index ones. These four types
+// numbers in `gt_core::design` section 11 are the 32-bit-index ones. These four types
 // are named only by those assertions, so the import carries the same gate --
 // otherwise `--all-features` builds this file with four unused imports.
 #[cfg(not(feature = "wide-index"))]
@@ -37,7 +37,7 @@ use std::collections::HashSet;
 // Layout
 // ---------------------------------------------------------------------------
 
-/// DESIGN.md section 11, the rows this unit owns. Written as literals rather
+/// `gt_core::design` section 11, the rows this unit owns. Written as literals rather
 /// than as a relation between `size_of`s, because a relation that holds for
 /// the wrong reason is exactly how `_epos`'s `uint32_t` came to sit under a
 /// `size_t` vertex (`graph_adjacency.hh:620`, defect #5).
@@ -76,7 +76,7 @@ fn a_notification_costs_nothing_to_return() {
 // ---------------------------------------------------------------------------
 
 /// `Vec::new()` does not allocate, so an isolated vertex costs the 32 bytes of
-/// its record and no malloc -- the property DESIGN.md section 3 cites when it
+/// its record and no malloc -- the property `gt_core::design` section 3 cites when it
 /// rejects an inline small-vector buffer.
 #[test]
 fn an_isolated_vertex_is_empty_in_both_halves() {

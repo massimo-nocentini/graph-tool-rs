@@ -788,7 +788,7 @@ fn the_call_order_is_propose_score_perform_step() {
 }
 
 // ===========================================================================
-// 7. The negative guarantees (DESIGN.md §14, defect #19)
+// 7. The negative guarantees (`gt_core::design` §14, defect #19)
 // ===========================================================================
 
 /// Defect #19 is the reason `GroupProposal` is shaped as it is: the sampler

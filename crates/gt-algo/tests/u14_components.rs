@@ -1,6 +1,6 @@
 //! U14 — components, against independent references.
 //!
-//! DESIGN.md §16: *it compiles* is not evidence. Every kernel here is checked
+//! `gt_core::design` §16: *it compiles* is not evidence. Every kernel here is checked
 //! against a reference built by a **different algorithm** — union-find for the
 //! connected components, Kosaraju's two-pass for the strong ones — so an error
 //! shared between implementation and reference would have to be an error in

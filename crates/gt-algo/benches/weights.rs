@@ -1,4 +1,4 @@
-//! Weighted-degree selectors: the property-map axis of DESIGN.md section 12.
+//! Weighted-degree selectors: the property-map axis of `gt_core::design` section 12.
 //!
 //! `kernels.rs` measures the *graph* axis (traversal shapes). This file
 //! measures the *weight-map* axis, which is the one section 12 makes a
@@ -171,7 +171,7 @@ fn bulk(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Instruction-level probes for DESIGN.md section 12.
+// Instruction-level probes for `gt_core::design` section 12.
 //
 // `gt-algo/tests/u15_degree.rs` disassembles a Unity monomorphisation too,
 // but a test binary is built with `[profile.dev]` (opt-level 1, no LTO).

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ConstI64","Constant","DenseProp","PropSlice","PropSliceMut","Unity"],"trait":["One"],"type":["EdgeProp","VertexProp"]};

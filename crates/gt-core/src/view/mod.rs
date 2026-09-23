@@ -1,6 +1,6 @@
 //! The view algebra: directed x reversed x filtered, as six types.
 //!
-//! ## The six, and only the six (DESIGN.md D3)
+//! ## The six, and only the six ([DESIGN](crate::design) D3)
 //!
 //! `graph_filtering.hh:67-96` builds six types from three booleans by a
 //! `std::conditional_t` tower, drops the impossible corner with a
@@ -444,7 +444,7 @@ mod tests {
 
             // Degree-summation as a definition of `num_edges` double-counts on
             // an undirected view: that is why `EdgeList` is a bound on
-            // `Filtered::new` (DESIGN.md section 4).
+            // `Filtered::new` (`gt_core::design` section 4).
             let und_sum: usize = u.vertices().map(|w| u.out_degree(w)).sum();
             assert_eq!(
                 und_sum,
@@ -466,7 +466,7 @@ mod tests {
 
     /// The numbers themselves, so that "consistent" cannot be satisfied by a
     /// filter that quietly keeps everything — which is the failure mode of a
-    /// design whose `vmask` field was read nowhere (DESIGN.md D3).
+    /// design whose `vmask` field was read nowhere ([DESIGN](crate::design) D3).
     #[test]
     fn the_filter_actually_removes_things() {
         let m = rich();
@@ -826,7 +826,7 @@ mod tests {
 
     /// The upper bound is the unfiltered length and the lower bound is zero:
     /// a filtered iterator does not know its length without walking, which is
-    /// why `ExactIncidence` is a separate refinement (DESIGN.md section 4).
+    /// why `ExactIncidence` is a separate refinement ([DESIGN](crate::design) section 4).
     #[test]
     fn a_filtered_iterator_promises_nothing_it_has_not_counted() {
         let m = rich();

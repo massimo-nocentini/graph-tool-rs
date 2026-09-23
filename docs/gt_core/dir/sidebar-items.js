@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Directed","Field","Undirected"],"trait":["Dir","HasDir"]};

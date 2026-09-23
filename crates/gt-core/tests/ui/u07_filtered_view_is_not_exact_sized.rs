@@ -1,4 +1,4 @@
-//! DESIGN.md section 4: `GraphRef` does **not** require
+//! `gt_core::design` section 4: `GraphRef` does **not** require
 //! `ExactSizeIterator`, because a per-edge-predicate view cannot supply a
 //! length without walking. `ExactIncidence` is the refinement that unfiltered
 //! views implement and filtered ones do not.

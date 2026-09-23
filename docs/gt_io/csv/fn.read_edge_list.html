@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Build a graph from a delimited edge list."><title>read_edge_list in gt_io::csv - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">read_edge_list</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_io/index.html">gt_io</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">read_<wbr>edge_<wbr>list</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#semantics" title="Semantics">Semantics</a></li><li><a href="#errors" title="Errors">Errors</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In gt_<wbr>io::<wbr>csv</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_io</a>::<wbr><a href="index.html">csv</a></div><h1>Function <span class="fn">read_<wbr>edge_<wbr>list</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_io/csv.rs.html#129-192">Source</a> </span></div><pre class="rust item-decl"><code>pub fn read_edge_list&lt;R: <a class="trait" href="https://doc.rust-lang.org/1.98.1/std/io/trait.Read.html" title="trait std::io::Read">Read</a>, H: Lookup&gt;(
+    r: R,
+    opts: <a class="struct" href="struct.EdgeListOptions.html" title="struct gt_io::csv::EdgeListOptions">EdgeListOptions</a>,
+    lookup: H,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.98.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;(AdjList&lt;H&gt;, <a class="struct" href="https://doc.rust-lang.org/1.98.1/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.98.1/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;), <a class="enum" href="../error/enum.IoError.html" title="enum gt_io::error::IoError">IoError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Build a graph from a delimited edge list.</p>
+<p>Uses <a href="gt_core::adj::ParBuilder"><code>ParBuilder</code></a> when the input can be chunked,
+so the edge ids do not depend on the number of worker threads.</p>
+<p>The second half of the result is the vertex-name map: <code>names[v.index()]</code> is
+the string <code>v</code> was interned from. It is <code>load_graph_from_csv</code>’s <code>g.vp.name</code>
+(<code>graph_tool/__init__.py:3891-3892</code>), and like it, it is empty when
+<code>opts.symbolic</code> is false – there the fields <em>are</em> the indices and there is
+nothing to record.</p>
+<h2 id="semantics"><a class="doc-anchor" href="#semantics">§</a>Semantics</h2>
+<ul>
+<li>Endpoints are stripped of leading and trailing ASCII whitespace, which is
+<code>load_graph_from_csv</code>’s <code>strip_whitespace=True</code> default (<code>:3832-3836</code>).
+Stripping happens <em>after</em> unquoting, exactly as it does there, so
+<code>" a "</code> and <code>a</code> name the same vertex.</li>
+<li>With <code>opts.symbolic</code>, vertices are numbered in first-seen order, source
+before target. The empty string is a name like any other.</li>
+<li>Without it, each field must parse as a <code>usize</code> and the graph gets
+<code>max + 1</code> vertices – the fixed point of
+<code>while (s &gt;= num_vertices(g) || t &gt;= num_vertices(g)) add_vertex(g);</code>
+(<code>graph_python_interface_imp1.cc:75-76</code>).</li>
+<li>Blank records are skipped. <code>load_graph_from_csv</code> does not skip them: a
+blank line reaches <code>add_edge_list</code> as <code>[]</code> and the unconditional
+<code>row[0]</code> at <code>graph_tool/__init__.py:3856</code> raises <code>IndexError</code>. A trailing
+newline is not a syntax error in any other reader of this format, and it
+is not one here.</li>
+</ul>
+<h2 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h2>
+<ul>
+<li><a href="../error/enum.IoError.html#variant.Io" title="variant gt_io::error::IoError::Io"><code>IoError::Io</code></a> from the stream.</li>
+<li><a href="../error/enum.IoError.html#variant.Parse" title="variant gt_io::error::IoError::Parse"><code>IoError::Parse</code></a>, with the one-based line the record <em>started</em> on, for
+a record with fewer than two fields, an unterminated quoted field, a
+field that is not UTF-8, or – when <code>opts.symbolic</code> is false – a field
+that is not a non-negative integer.</li>
+<li><a href="../error/enum.IoError.html#variant.IndexWidthExceeded" title="variant gt_io::error::IoError::IndexWidthExceeded"><code>IoError::IndexWidthExceeded</code></a> if the vertex or edge count does not fit
+<a href="gt_core::ids::Raw"><code>Raw</code></a>.</li>
+</ul>
+</div></details></section></div></main></body></html>

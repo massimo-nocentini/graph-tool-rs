@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Connected, weakly connected and strongly connected components."><title>gt_algo::components - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_algo" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module components</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_algo/index.html">gt_algo</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module components</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#labels" title="Labels">Labels</a></li><li><a href="#the-sentinel" title="The sentinel">The sentinel</a></li></ul><h3><a href="#constants">Module Items</a></h3><ul class="block"><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>algo</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_algo</a></div><h1>Module <span>components</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_algo/components.rs.html#1-293">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Connected, weakly connected and strongly connected components.</p>
+<p>The port of <code>label_components</code> (<code>topology/graph_components.hh:102-129</code>),
+which is a two-arm tag dispatch: <code>boost::strong_components</code> when
+<code>directed_category</code> converts to <code>directed_tag</code>, <code>boost::connected_components</code>
+otherwise. That single entry point is split in two here, and the split is
+the point.</p>
+<p><code>boost::connected_components</code> carries
+<code>BOOST_STATIC_ASSERT((is_same&lt;directed, undirected_tag&gt;::value))</code>, so the
+C++ can only reach it through the <code>std::false_type</code> arm — and the tag it
+branches on comes from <code>graph_traits&lt;Graph&gt;::directed_category</code>, i.e. from
+the <em>view type</em>, not from what the caller meant. <code>GraphView(g, directed=False)</code> (<code>__init__.py:1370</code>) is how a caller says “weak
+components”, and forgetting it silently buys the strong ones instead.</p>
+<p>Here <a href="fn.components.html" title="fn gt_algo::components::components"><code>components</code></a> and <a href="fn.strong_components.html" title="fn gt_algo::components::strong_components"><code>strong_components</code></a> are separate functions and
+the second is bounded on [<code>Bidirectional</code>], which no undirected view
+implements, so the two are not confusable in either direction: asking for
+strong components of <code>g.undirect()</code> is <code>error[E0277]</code>, and asking for
+connected components is <code>components(g.undirect())</code>, written out.</p>
+<h3 id="labels"><a class="doc-anchor" href="#labels">§</a>Labels</h3>
+<p>Both functions reproduce boost’s numbering exactly, because
+<code>graph_components.hh:110</code> wraps the caller’s map in a
+<code>HistogramPropertyMap</code> whose histogram is indexed <em>by the label</em>: the
+numbering is observable from Python as <code>hist</code>, and
+<code>label_largest_component</code> (<code>__init__.py:1431</code>) then does
+<code>c.fa == h.argmax()</code>.</p>
+<ul>
+<li><a href="fn.components.html" title="fn gt_algo::components::components"><code>components</code></a> numbers by root order: the component of the first
+unvisited vertex in [<code>VertexList::vertices</code>] order is 0, the next is 1.
+That is <code>components_recorder::start_vertex</code>, which increments the counter
+once per DFS root, with <code>discover_vertex</code> writing the current value.</li>
+<li><a href="fn.strong_components.html" title="fn gt_algo::components::strong_components"><code>strong_components</code></a> numbers in the order the SCC <em>roots finish</em>, which
+is <code>tarjan_scc_visitor::finish_vertex</code> incrementing <code>c_count</code> after
+popping a component off its stack. The observable consequence is that the
+labels are a reverse topological order of the condensation: for every
+edge <code>u -&gt; v</code>, <code>label[u] &gt;= label[v]</code>.</li>
+</ul>
+<h3 id="the-sentinel"><a class="doc-anchor" href="#the-sentinel">§</a>The sentinel</h3>
+<p>Both functions first fill the whole <em>bound</em> with <a href="constant.UNLABELED.html" title="constant gt_algo::components::UNLABELED"><code>UNLABELED</code></a> and only
+then label what the view exposes. On a filtered view that matters: the map
+is sized for the unfiltered index space (it must be — the labels are
+indexed by unfiltered <code>VertexId</code>), while only the surviving vertices are
+reachable from <code>vertices()</code>. C++ leaves the rest holding whatever the
+property map’s default was, which for a fresh <code>int32_t</code> map is <code>0</code> —
+indistinguishable from a genuine member of component 0. <code>label_components</code>
+is documented to return labels “from 0 to N-1” (<code>graph_components.hh:99</code>)
+and its histogram counts only the vertices it wrote, so the two disagree on
+a filtered graph. Here a vertex the view does not expose reads <code>-1</code>.</p>
+</div></details><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.UNLABELED.html" title="constant gt_algo::components::UNLABELED">UNLABELED</a></dt><dd>The value a vertex outside the view carries after a labelling run.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.components.html" title="fn gt_algo::components::components">components</a></dt><dd>Label each vertex with its component.</dd><dt><a class="fn" href="fn.largest_component_mask.html" title="fn gt_algo::components::largest_component_mask">largest_<wbr>component_<wbr>mask</a></dt><dd>The largest component, as a vertex mask suitable for
+<a href="gt_core::view::MaskFilter"><code>MaskFilter</code></a>.</dd><dt><a class="fn" href="fn.strong_components.html" title="fn gt_algo::components::strong_components">strong_<wbr>components</a></dt><dd>Strongly connected components (Tarjan).</dd></dl></section></div></main></body></html>

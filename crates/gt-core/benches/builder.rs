@@ -2,7 +2,7 @@
 //!
 //! graph-tool supports concurrent mutation of a *live* graph
 //! (`set_concurrent`, `graph_adjacency.hh:451`, with a per-thread `_free_idx_m`
-//! at `:613` and `#pragma omp atomic g._n_edges++` at `:1214`). DESIGN.md
+//! at `:613` and `#pragma omp atomic g._n_edges++` at `:1214`). `gt_core::design`
 //! defect #51 records that `&mut AdjList` removes that capability rather than
 //! fixing it, and that [`ParBuilder`](gt_core::adj::ParBuilder) is the honest
 //! replacement: deterministic, chunk-ordered, and therefore giving edge ids
@@ -80,7 +80,7 @@ fn parallel(n: usize, m: usize) -> AdjList<NoLookup> {
 fn build_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("builder");
     // 1e5 and 1e6 are where the merge overhead is still visible; 1e7 is the
-    // size DESIGN.md's bulk-construction claim is about.
+    // size `gt_core::design`'s bulk-construction claim is about.
     for &(label, n, m) in &[
         ("1e5", 25_000usize, 100_000usize),
         ("1e6", 250_000, 1_000_000),

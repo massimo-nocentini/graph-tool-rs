@@ -83,7 +83,7 @@ pub fn vterm<D: Dir>(mrp: f64, mrm: f64, wr: f64, deg_corr: bool, c: &Cache) -> 
 
 /// The dense-model edge term. `entropy.hh:235` (`eterm_dense_d`).
 ///
-/// **Deviation from the skeleton (DESIGN.md rule 7).** `r` and `s` were added.
+/// **Deviation from the skeleton ([DESIGN](gt_core::design) rule 7).** `r` and `s` were added.
 /// `eterm_dense_d` branches on `directed || r != s` (`entropy.hh:241`) to pick
 /// between `wr_r * wr_s` and the triangular self-pair count, and the two
 /// disagree by a factor of roughly two; with only the two vertex counts in
@@ -127,7 +127,7 @@ pub fn eterm_dense<D: Dir>(
 
 /// The description length of the edge counts. `entropy.hh:293`.
 ///
-/// **Deviation from the skeleton (DESIGN.md rule 7).** The `D: Dir` parameter
+/// **Deviation from the skeleton ([DESIGN](gt_core::design) rule 7).** The `D: Dir` parameter
 /// was added: `get_edges_dl` chooses `B * B` or `B * (B + 1) / 2` on
 /// `is_directed(g)` (`entropy.hh:295`), and the skeleton carried no
 /// directedness at all.
@@ -251,7 +251,7 @@ fn sparse_terms<D: Dir, W: Weight>(
 /// other readers -- but it means the state-free pricing signature holds for
 /// the sparse model only, and presenting it as unconditional would be false.
 ///
-/// **Deviation from the skeleton (DESIGN.md rule 7).** `slots` was added: it
+/// **Deviation from the skeleton ([DESIGN](gt_core::design) rule 7).** `slots` was added: it
 /// is `num_vertices(_bg)`, the number of block-graph *slots*, exactly the
 /// third argument of `m_entries.set_move(r, s, num_vertices(_bg))`
 /// (`state.hh:1107`). [`BlockView`] exposes no way to enumerate block-graph

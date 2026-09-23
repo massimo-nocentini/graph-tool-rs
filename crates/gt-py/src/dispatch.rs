@@ -147,7 +147,7 @@ const _: () = {
 /// [`DispatchError`](gt_core::error::DispatchError) is not reused here: its
 /// `offered`/`accepted` are [`ValueKind`](gt_core::prop::ValueKind)s, and
 /// filling those in with a fabricated member to describe a *view* mismatch is
-/// precisely the failure DESIGN.md section 6 records for a transposed
+/// precisely the failure [DESIGN](gt_core::design) section 6 records for a transposed
 /// `value_subset!` row -- "a runtime `DispatchError` naming the **wrong** type
 /// as offered and listing it as accepted, strictly worse than
 /// `DispatchNotFound`, which at least prints honestly".

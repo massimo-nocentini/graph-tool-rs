@@ -556,7 +556,7 @@ impl<H: Lookup> AdjList<H> {
 
     /// Run [`validate`](Self::validate) after a mutation, in debug builds.
     ///
-    /// This is DESIGN.md's answer to defect #46 -- `check_epos` exists in
+    /// This is [DESIGN](crate::design)'s answer to defect #46 -- `check_epos` exists in
     /// graph-tool and every call site is commented out (`:698`, `:1226`,
     /// `:1277`, `:1306`, `:1433`) -- wired up.
     ///

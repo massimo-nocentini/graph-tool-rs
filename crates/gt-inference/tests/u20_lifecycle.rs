@@ -611,7 +611,7 @@ fn the_tokens_may_be_applied_in_any_order() {
 // 5. Shapes
 // ===========================================================================
 
-/// `Entry<i64>` is the unit of the pricing scan (DESIGN.md §15.3), and
+/// `Entry<i64>` is the unit of the pricing scan (`gt_core::design` §15.3), and
 /// `Applied`/`Delta` must not silently start copying buffers around.
 #[test]
 fn the_tokens_are_borrows_not_copies() {

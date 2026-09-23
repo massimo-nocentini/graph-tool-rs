@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"trait":["Bidirectional","EdgeList","Endpoints","ExactIncidence","GraphBase","GraphOwner","GraphRef","VertexList"]};

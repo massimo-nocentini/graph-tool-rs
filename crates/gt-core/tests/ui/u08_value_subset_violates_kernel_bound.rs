@@ -1,4 +1,4 @@
-//! DESIGN.md §6, second half of the `value_subset!` guarantee.
+//! `gt_core::design` §6, second half of the `value_subset!` guarantee.
 //!
 //! The kernel trait is generated *with its bound*, so a subset cannot list a
 //! member whose type the kernel body could not handle. `std::string` is a

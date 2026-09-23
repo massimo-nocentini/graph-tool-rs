@@ -7,7 +7,7 @@
 //! * **the niche.** `Option<Group>` must be four bytes, or the whole reason
 //!   for `NonZeroU32` over a plain `u32` is gone and `Entry<W>` (U19) grows.
 //!   graph-tool spends a full `int64_t` plus a sentinel
-//!   (`inference/blockmodel/spec.hh:87-88`), and DESIGN.md §11 tabulates 4
+//!   (`inference/blockmodel/spec.hh:87-88`), and `gt_core::design` §11 tabulates 4
 //!   against 8.
 //! * **the sentinel arithmetic.** `null_group = numeric_limits<int64_t>::max()`
 //!   burns the *top* representable value, so `INT64_MAX - 1` is the last
@@ -41,7 +41,7 @@ fn assert_send_sync<T: Send + Sync + 'static>() {}
 fn assert_weight<W: Weight>() {}
 
 // ---------------------------------------------------------------------------
-// Layout (DESIGN.md §11)
+// Layout (`gt_core::design` §11)
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -381,7 +381,7 @@ fn weight_algebra_admits_negative_deltas() {
     check::<f64>("f64");
 }
 
-/// `i32` is the narrow count type of DESIGN.md §13's open question. Its
+/// `i32` is the narrow count type of `gt_core::design` §13's open question. Its
 /// `from_i64` is a narrowing cast, which is exactly C++'s implicit
 /// `int64_t -> int32_t` conversion; the point of the test is that the
 /// behaviour is *pinned*, so that a later unit cannot quietly swap in a

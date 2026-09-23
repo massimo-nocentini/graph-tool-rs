@@ -91,7 +91,7 @@ impl<T, K: IdTag> DenseProp<T, K> {
     {
         // `T::zero` is a `fn() -> T`, hence an `FnMut() -> T`: the two entry
         // points are one implementation, and the `Zeroed` bound buys only the
-        // absence of a closure at the call site. DESIGN.md section 13.1: the
+        // absence of a closure at the call site. `gt_core::design` section 13.1: the
         // `Default` supertrait this replaces is unimplementable for the 15th
         // member of the value universe.
         self.sized_for_with(bound, T::zero)
@@ -641,7 +641,7 @@ mod tests {
         assert_eq!(calls, 0);
     }
 
-    /// The reason `sized_for_with` exists at all (DESIGN.md section 13.1): the
+    /// The reason `sized_for_with` exists at all ([DESIGN](crate::design) section 13.1): the
     /// 15th member has no context-free default, so growth must be able to take
     /// a closure over borrowed context. `String` stands in for the borrow.
     #[test]
@@ -715,7 +715,7 @@ mod tests {
     }
 
     /// What `sized_for` buys the caller of `view`: the two-phase shape
-    /// DESIGN.md section 5 moves out of Python.
+    /// [DESIGN](crate::design) section 5 moves out of Python.
     #[test]
     fn sizing_first_makes_the_read_only_view_succeed() {
         let g = GraphId::fresh();
@@ -880,7 +880,7 @@ mod tests {
     }
 
     proptest! {
-        /// DESIGN.md section 16's model-based check, for the sizing chokepoint:
+        /// [DESIGN](crate::design) section 16's model-based check, for the sizing chokepoint:
         /// a `Vec<i64>` is the reference, and the store must equal it after
         /// every operation in the sequence.
         ///

@@ -246,7 +246,7 @@ fn move_vertex(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// An instruction-level probe for DESIGN.md section 12.
+// An instruction-level probe for `gt_core::design` section 12.
 //
 // The ledger's "Wins" list says the before-image removes "two cache-cold
 // dependent loads per entry from `entries_dS`, the hottest kernel in the

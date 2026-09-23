@@ -1,4 +1,4 @@
-//! DESIGN.md section 12, pinned: the SBM move cycle allocates nothing in
+//! `gt_core::design` section 12, pinned: the SBM move cycle allocates nothing in
 //! steady state.
 //!
 //! Section 12's "Wins" list claims that the before-image removes "two

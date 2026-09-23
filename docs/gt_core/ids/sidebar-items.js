@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_INDEX"],"struct":["EdgeTag","GraphId","Id","VertexTag"],"trait":["IdTag"],"type":["EdgeId","Raw","VertexId"]};

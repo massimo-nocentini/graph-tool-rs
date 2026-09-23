@@ -1,4 +1,4 @@
-//! DESIGN.md section 11's layout table, pinned row by row.
+//! `gt_core::design` section 11's layout table, pinned row by row.
 //!
 //! Section 12's first Win -- "2x on the adjacency stream. 8-byte entries
 //! against 16 (section 11)" -- is a claim about `size_of`, and section 11 is
@@ -63,7 +63,7 @@ fn section_11_is_the_layout_this_build_has() {
         ("Option<Group>", 4), // gt-inference's; see that crate's tests.
         ("Option<VertexId>", size_of::<Option<VertexId>>()),
     ];
-    println!("\nDESIGN.md section 11, measured on this build (Raw = 4 bytes):");
+    println!("\ngt_core::design section 11, measured on this build (Raw = 4 bytes):");
     for (name, bytes) in rows {
         println!("  {name:<34} {bytes:>3}");
     }

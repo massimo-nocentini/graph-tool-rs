@@ -1,6 +1,6 @@
 //! U11 — deterministic reductions, checked through the public surface.
 //!
-//! Three defects from DESIGN.md §14 are on trial here and each one is a
+//! Three defects from `gt_core::design` §14 are on trial here and each one is a
 //! *numerical* claim, so each test compares bit patterns or errors rather than
 //! asserting that something compiled.
 //!
@@ -590,7 +590,7 @@ fn chunk_sums_carry_the_index_that_orders_them() {
 }
 
 // ===========================================================================
-// 4. The codegen ledger (DESIGN.md §12) — recorded, not assumed
+// 4. The codegen ledger (`gt_core::design` §12) — recorded, not assumed
 // ===========================================================================
 //
 // §12 states that a plain scan emits `addsd` and never `addpd`, "and so does a
@@ -720,7 +720,7 @@ fn the_ledger_records_whether_chunked_sum_vectorises() {
 
     let packed = has_packed_add(&unrolled);
     let record = format!(
-        "LEDGER (DESIGN.md §12, U11): {} -O, arch = {}\n  \
+        "LEDGER (gt_core::design §12, U11): {} -O, arch = {}\n  \
          scan            : addpd = false (guaranteed), addsd = true\n  \
          chunked_sum::<4>: addpd = {packed}\n  \
          §12 records addpd = true for the hand-unroll. \

@@ -413,7 +413,7 @@ fn the_serial_strategy_can_be_named_and_run_on_its_own() {
 /// This is the one place the Python member forces the port's hand and the
 /// forcing is the right way round: `PyValue` has no context-free default, so
 /// `DenseProp::sized_for` does not exist for it and the sizing has to happen
-/// at the entry point, under the token (DESIGN.md §5). graph-tool's
+/// at the entry point, under the token (`gt_core::design` §5). graph-tool's
 /// `get_unchecked(size = 0)` (`dispatch.hh:171-177`) hands the kernel the
 /// short map instead.
 #[test]
@@ -644,7 +644,7 @@ const _: () = {
 
 /// Four diagnostics, none of which has a runtime representation.
 ///
-/// DESIGN.md §7 claims each of them; a claim about a compiler error that is
+/// `gt_core::design` §7 claims each of them; a claim about a compiler error that is
 /// not pinned to the compiler's actual output regresses the first time
 /// somebody adds a blanket impl or relaxes a bound, and regresses *silently*,
 /// because the suite goes on passing while checking nothing.

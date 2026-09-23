@@ -5,10 +5,10 @@
 //! switches. Every one of those is the kind of thing that breaks silently —
 //! a missing `harness = false` turns criterion's `main` into a link error with
 //! an unhelpful message, a `[profile.test] debug-assertions = false` turns six
-//! rows of DESIGN.md's defect table into dead code while the suite stays
+//! rows of `gt_core::design`'s defect table into dead code while the suite stays
 //! green — so U0 gets tests like every other unit.
 //!
-//! DESIGN.md section 16 is blunt about why: *"it compiles" is not evidence*.
+//! gt_core::design section 16 is blunt about why: *"it compiles" is not evidence*.
 //! The same applies to the harness. A harness that is present but misconfigured
 //! is worse than an absent one, because it reports success.
 
@@ -23,7 +23,7 @@ use proptest::prelude::*;
 // 1. The profile switches the defect table depends on
 // ===========================================================================
 
-/// Six "eliminated" rows of DESIGN.md section 14 are cashed out as checks that
+/// Six "eliminated" rows of gt_core::design section 14 are cashed out as checks that
 /// exist **only** under `debug_assertions`:
 ///
 /// * #46 — `check_epos` exists in graph-tool and every call site is commented
@@ -56,11 +56,11 @@ fn the_test_profile_keeps_the_invariant_checks_on() {
         body_ran,
         "debug_assert! bodies do not run, so AdjList::validate, audit_commit \
          and the sized_for graph check are all compiled out: this run proves \
-         nothing about DESIGN.md section 14. Run `cargo test` without --release."
+         nothing about gt_core::design section 14. Run `cargo test` without --release."
     );
 }
 
-/// `[profile.dev] overflow-checks = true` is justified in DESIGN.md section 10
+/// `[profile.dev] overflow-checks = true` is justified in `gt_core::design` section 10
 /// by exactly one failure: defect #1, where `clear_vertex` decrements
 /// `_n_edges` by two for one removed edge because it counts `remove_if`'s
 /// moved-from tail (`graph_adjacency.hh:1403-1410`). In the port the same
@@ -102,7 +102,7 @@ fn workspace_root() -> PathBuf {
 /// The crates U0 is responsible for configuring.
 const CRATES: [&str; 5] = ["gt-core", "gt-algo", "gt-inference", "gt-io", "gt-py"];
 
-/// The three dependencies DESIGN.md section 16 makes mandatory.
+/// The three dependencies `gt_core::design` section 16 makes mandatory.
 const HARNESS_DEPS: [&str; 3] = ["criterion", "proptest", "trybuild"];
 
 /// One `[[bench]]` stanza.
@@ -280,7 +280,7 @@ fn every_bench_file_is_registered_with_harness_false() {
 // 3. The harness dependencies actually link and run
 // ===========================================================================
 
-/// trybuild is the load-bearing dependency for DESIGN.md section 14: six of
+/// trybuild is the load-bearing dependency for `gt_core::design` section 14: six of
 /// its rows are claims about a *diagnostic*, and a diagnostic has no runtime
 /// representation to assert on.
 ///

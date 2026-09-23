@@ -296,7 +296,7 @@ fn every_arm_runs_and_reports_the_same_vertex_set() {
         let r = run(kind);
         assert_eq!(r.vertices, vec![0, 1, 2, 3], "{kind:?}");
         assert_eq!(r.n_vertices, r.vertices.len(), "{kind:?}");
-        // The honest identity DESIGN.md section 4 requires: the memoised
+        // The honest identity `gt_core::design` section 4 requires: the memoised
         // count and the iterator agree. `filt_graph` returns the unfiltered
         // count (`graph_filtered.hh:316`) and loses it.
         assert_eq!(r.n_edges, r.edges.len(), "{kind:?}");

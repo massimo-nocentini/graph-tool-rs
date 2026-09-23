@@ -1,6 +1,6 @@
 //! Adjacency entries and the two edge descriptor types.
 //!
-//! ## Why there are two (DESIGN.md D2)
+//! ## Why there are two ([DESIGN](crate::design) D2)
 //!
 //! graph-tool has one, `adj_edge_descriptor {Vertex s, t, idx}`
 //! (`graph_adjacency.hh:186-206`), and it is overloaded:

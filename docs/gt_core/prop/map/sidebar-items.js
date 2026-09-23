@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Owned"],"trait":["LvalueProp","ReadEdgeProp","ReadProp","ReadVertexProp","WriteProp"]};

@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Breadth- and depth-first traversal."><title>gt_algo::traversal - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_algo" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module traversal</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_algo/index.html">gt_algo</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module traversal</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-visitor-contract-stated-once" title="The visitor contract, stated once">The visitor contract, stated once</a></li><li><a href="#reachability-not-membership" title="Reachability, not membership">Reachability, not membership</a></li></ul><h3><a href="#enums">Module Items</a></h3><ul class="block"><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate gt_<wbr>algo</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_algo</a></div><h1>Module <span>traversal</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_algo/traversal.rs.html#1-488">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Breadth- and depth-first traversal.</p>
+<h3 id="the-visitor-contract-stated-once"><a class="doc-anchor" href="#the-visitor-contract-stated-once">§</a>The visitor contract, stated once</h3>
+<p><code>breadth_first_visit</code> (boost/graph/breadth_first_search.hpp) fires nine
+events; graph-tool’s <code>BFSVisitorWrapper</code> (<code>search/graph_bfs.cc:41-105</code>)
+forwards all nine across the Python boundary. Three of them —
+<code>discover_vertex</code>, <code>examine_edge</code>, <code>finish_vertex</code> — carry the whole of
+what a traversal is; the other six are re-derivable from the colour map a
+caller does not have, and each is one more <code>_vis.attr(...)</code> lookup per
+event. <a href="trait.Visitor.html" title="trait gt_algo::traversal::Visitor"><code>Visitor</code></a> therefore has exactly the three, and states their
+order:</p>
+<ol>
+<li><a href="trait.Visitor.html#method.discover" title="method gt_algo::traversal::Visitor::discover"><code>discover</code></a> fires once per vertex, at the moment it
+is coloured, <em>before</em> it is expanded. The source fires it at <code>depth 0</code>,
+exactly as <code>breadth_first_visit</code> calls <code>discover_vertex(s)</code> before
+entering its loop.</li>
+<li><a href="trait.Visitor.html#method.examine" title="method gt_algo::traversal::Visitor::examine"><code>examine</code></a> fires for <strong>every</strong> incidence of an
+expanded vertex, tree edge or not — the <code>examine_edge</code> position, which
+precedes the colour test.</li>
+<li><a href="trait.Visitor.html#method.finish" title="method gt_algo::traversal::Visitor::finish"><code>finish</code></a> fires when the last incidence of a vertex
+has been examined.</li>
+</ol>
+<p><a href="enum.Control.html" title="enum gt_algo::traversal::Control"><code>Control</code></a> is the part boost does not have: its visitors terminate by
+throwing (<code>topology/graph_distance.cc:42</code> defines <code>struct stop_search {}</code>
+and <code>:62</code>, <code>:69</code>, <code>:113</code> throw it from inside the kernel, caught at
+<code>:314</code>). A <code>throw</code> from a visitor leaves the algorithm’s own state
+half-updated and is caught by <em>value</em> across a template boundary, so a
+second visitor throwing a second exception type is silently uncaught. Here
+the traversal asks and the visitor answers:</p>
+<ul>
+<li><a href="enum.Control.html#variant.Prune" title="variant gt_algo::traversal::Control::Prune"><code>Control::Prune</code></a> from <code>discover</code> — the vertex is discovered and never
+expanded. It is therefore never finished: <code>finish(v)</code> and “the
+neighbours of <code>v</code> were examined” are the same statement.</li>
+<li><a href="enum.Control.html#variant.Prune" title="variant gt_algo::traversal::Control::Prune"><code>Control::Prune</code></a> from <code>examine</code> — that one incidence is not followed;
+the neighbour stays undiscovered unless some other edge reaches it.</li>
+<li><a href="enum.Control.html#variant.Stop" title="variant gt_algo::traversal::Control::Stop"><code>Control::Stop</code></a> from either — the traversal returns <code>Ok(())</code>
+immediately, with no <code>finish</code> for the vertex in flight. Stopping is a
+<em>result</em>, not a failure, which is why it is not an <code>Err</code>.</li>
+</ul>
+<h3 id="reachability-not-membership"><a class="doc-anchor" href="#reachability-not-membership">§</a>Reachability, not membership</h3>
+<p>A traversal checks its source against
+<a href="gt_core::graph::GraphBase::vertex_bound"><code>vertex_bound</code></a> — the allocation
+bound, the number that sizes the colour array — and answers
+<a href="gt_core::GraphError::NoSuchVertex"><code>GraphError::NoSuchVertex</code></a> outside it.
+It does <em>not</em> check that a filtered view keeps the source:
+<code>Filtered::out_edges</code> filters the incidences of its anchor without
+re-testing the anchor (<code>view/filtered.rs</code>, <code>keeps_incident</code>), and
+<code>filt_graph</code> behaves the same way. Testing it would cost an O(V) scan per
+call on the one view that cannot answer it in O(1).</p>
+</div></details><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.Control.html" title="enum gt_algo::traversal::Control">Control</a></dt><dd>What a visitor asks the traversal to do next.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.UNREACHABLE.html" title="constant gt_algo::traversal::UNREACHABLE">UNREACHABLE</a></dt><dd>The value an unreached vertex carries in an integer distance map.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Visitor.html" title="trait gt_algo::traversal::Visitor">Visitor</a></dt><dd>Callbacks for a traversal.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.bfs.html" title="fn gt_algo::traversal::bfs">bfs</a></dt><dd>Breadth-first search from one source.</dd><dt><a class="fn" href="fn.bfs_multi.html" title="fn gt_algo::traversal::bfs_multi">bfs_<wbr>multi</a></dt><dd>Breadth-first search from several sources at once.</dd><dt><a class="fn" href="fn.dfs.html" title="fn gt_algo::traversal::dfs">dfs</a></dt><dd>Depth-first search from one source.</dd><dt><a class="fn" href="fn.dijkstra.html" title="fn gt_algo::traversal::dijkstra">dijkstra</a></dt><dd>Weighted shortest-path distances (Dijkstra).</dd><dt><a class="fn" href="fn.shortest_distances.html" title="fn gt_algo::traversal::shortest_distances">shortest_<wbr>distances</a></dt><dd>Unweighted shortest-path distances from one source.</dd></dl></section></div></main></body></html>

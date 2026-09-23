@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The core number of every vertex: Batagelj–Zaversnik bin sort."><title>kcore_decomposition in gt_algo::topology - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="gt_algo" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">kcore_decomposition</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../gt_algo/index.html">gt_algo</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">kcore_<wbr>decomposition</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-two-incidence-choices-which-are-the-whole-of-the-semantics" title="The two incidence choices, which are the whole of the semantics">The two incidence choices, which are the whole of the semantics</a></li><li><a href="#the-bookkeeping" title="The bookkeeping">The bookkeeping</a></li><li><a href="#panics" title="Panics">Panics</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In gt_<wbr>algo::<wbr>topology</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">gt_algo</a>::<wbr><a href="index.html">topology</a></div><h1>Function <span class="fn">kcore_<wbr>decomposition</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/gt_algo/topology.rs.html#639-704">Source</a> </span></div><pre class="rust item-decl"><code>pub fn kcore_decomposition&lt;G&gt;(
+    g: G,
+    core: &amp;mut DenseProp&lt;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.i64.html">i64</a>, VertexTag&gt;,
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.usize.html">usize</a><div class="where">where
+    G: GraphRef + VertexList,</div></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The core number of every vertex: Batagelj–Zaversnik bin sort.</p>
+<p>Ports <code>kcore_decomposition</code> (<code>topology/graph_kcore.hh:25-80</code>), which
+<code>do_kcore_decomposition</code> (<code>graph_kcore.cc:31-40</code>) dispatches over
+<code>all_graph_views</code>, so the same body runs on a directed graph, an undirected
+one and any filtered view of either.</p>
+<h3 id="the-two-incidence-choices-which-are-the-whole-of-the-semantics"><a class="doc-anchor" href="#the-two-incidence-choices-which-are-the-whole-of-the-semantics">§</a>The two incidence choices, which are the whole of the semantics</h3>
+<p>The C++ reads <code>degree(v, g)</code> (<code>:41</code>) and <code>all_neighbors_range(v, g)</code>
+(<code>:62</code>). For <code>adj_list</code> both are the <em>whole</em> block
+(<code>graph_adjacency.hh:1068-1072</code>, <code>:1163-1170</code>), so:</p>
+<ul>
+<li>on a directed graph the degree is the total in + out degree — which the
+Python docstring states outright (<code>topology/__init__.py:1832-1833</code>);</li>
+<li>a <strong>self-loop contributes two</strong>, because it occupies both halves of its
+vertex’s block, and “these edges contribute to the degree in the usual
+fashion” (<code>:1835-1836</code>);</li>
+<li>a parallel edge contributes its multiplicity.</li>
+</ul>
+<p>This port keeps those reads — [<code>GraphRef::degree</code>] and
+[<code>GraphRef::all_edges</code>] — so <code>kcore_decomposition(&amp;g)</code> and
+<code>kcore_decomposition(g.undirect())</code> are the same computation, exactly as
+the C++’s single body is.</p>
+<h3 id="the-bookkeeping"><a class="doc-anchor" href="#the-bookkeeping">§</a>The bookkeeping</h3>
+<p><code>bins[k]</code> holds the vertices whose <em>remaining</em> degree is <code>k</code>, and <code>pos[v]</code>
+is <code>v</code>’s index inside its bin, so removing a vertex from the middle of a
+bin is the swap-with-back at <code>:66-71</code>. Vertices are drained from the
+smallest bin upwards; peeling <code>v</code> out of bin <code>k</code> lowers each still-present
+neighbour whose remaining degree exceeds <code>deg[v]</code> by one and moves it down
+a bin. <code>deg[v]</code> itself is never lowered after <code>v</code> is popped, which is what
+makes the <code>ku &gt; deg[v]</code> test at <code>:64</code> mean “u has not been peeled yet”.</p>
+<p>Returns the largest core number, i.e. the degeneracy of the graph.</p>
+<h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
+<p>If <code>core</code> was minted for a different graph than <code>g</code>.</p>
+</div></details></section></div></main></body></html>

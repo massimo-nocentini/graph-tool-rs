@@ -1,6 +1,6 @@
 //! Deterministic reductions: what determinism costs.
 //!
-//! DESIGN.md section 12 states a loss and five of the six source designs did
+//! `gt_core::design` section 12 states a loss and five of the six source designs did
 //! not: `#pragma omp parallel for reduction(+:S)` (`potts/spec.hh:133, :143`)
 //! *licenses* GCC to reassociate and vectorise the accumulation, and Rust's
 //! `f64 +=` does not. A plain scan emits `addsd`, never `addpd`.
@@ -49,7 +49,7 @@ fn summands(n: usize) -> Vec<f64> {
 }
 
 // ===========================================================================
-// Instruction-level probes for DESIGN.md section 12's floating-point
+// Instruction-level probes for `gt_core::design` section 12's floating-point
 // paragraph.
 //
 // `gt-core/tests/u11_reduce.rs::the_ledger_records_whether_chunked_sum_vectorises`

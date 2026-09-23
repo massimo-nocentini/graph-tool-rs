@@ -1,6 +1,6 @@
 //! `.gt` write/read round-trip.
 //!
-//! DESIGN.md defect #52: this port removes edges with swap-with-back where
+//! `gt_core::design` defect #52: this port removes edges with swap-with-back where
 //! `graph_adjacency.hh:1257-1263` erases and shifts, so **adjacency order
 //! after a removal differs from graph-tool's**. The port's answer is that
 //! `gt::write` emits in [`EdgeId`](gt_core::ids::EdgeId) order rather than

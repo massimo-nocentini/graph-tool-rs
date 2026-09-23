@@ -24,7 +24,7 @@
 //!    accepted -- strictly worse than `DispatchNotFound`, which at least
 //!    prints honestly.
 //!
-//! ## What remains possible (DESIGN.md defect table, row 34)
+//! ## What remains possible ([DESIGN](crate::design) defect table, row 34)
 //!
 //! The narrowing ends in a `_ => Err` arm, because a subset is by definition
 //! partial. So adding a 16th [`ValueKind`] does not break the build at every

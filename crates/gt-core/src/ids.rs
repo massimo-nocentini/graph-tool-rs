@@ -1,6 +1,6 @@
 //! Identifiers.
 //!
-//! ## The width decision (DESIGN.md D5)
+//! ## The width decision ([DESIGN](crate::design) D5)
 //!
 //! graph-tool instantiates `adj_list<size_t>` and nothing else
 //! (`src/graph/graph.hh:137`), so an adjacency entry costs 16 bytes and a
@@ -13,7 +13,7 @@
 //! dominant memory stream) and `u64` under the `wide-index` feature. Making it
 //! an alias rather than a parameter removes an entire monomorphisation axis
 //! from every signature in the port -- see the instantiation budget in
-//! DESIGN.md section 10.
+//! [DESIGN](crate::design) section 10.
 
 use std::fmt;
 use std::hash::{Hash, Hasher};

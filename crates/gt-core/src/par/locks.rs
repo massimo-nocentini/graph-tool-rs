@@ -1,6 +1,6 @@
 //! Row locking for concurrent commits.
 //!
-//! ## Why this exists at all (DESIGN.md D9)
+//! ## Why this exists at all ([DESIGN](crate::design) D9)
 //!
 //! Three of the six source designs independently removed graph-tool's
 //! concurrent mutation and each scored the removal as a win. It is not a win.
